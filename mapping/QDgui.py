@@ -19,8 +19,8 @@ from skimage.morphology import binary_erosion
 
 from sunpy import sun, time
 
-from suvitrainer.fileio import Outgest
-from suvitrainer.config import Config
+from mapping.fileio import Outgest
+from mapping.config import Config
 
 import numpy as np
 

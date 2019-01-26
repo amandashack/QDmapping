@@ -1,0 +1,71 @@
+{
+  "train":{
+    "name":"amandashackelford",
+    "upload":true,
+    "products": ["QD"]
+  },
+
+"classes":{
+    "unlabeled":0,
+    "tear":1,
+    "twin-boundary":2,
+    "100":3,
+    "111":4,
+    "amorphous":5,
+    "undetermined":6,
+    "blank1":7,
+    "blank2":8,
+    "blank3":9
+  },
+
+  "display":{
+    "colors":{
+      "unlabeled":"white",
+      "tear": "#191970",
+      "twin-boundary": "#8b7b8b",
+      "100": "yellow",
+      "111": "#FF3E96",
+      "amorphous": "#FF69B4",
+      "undetermined": "#0085b2",
+      "blank1": "#006400",
+      "blank2": "#8FBC8F",
+      "blank3": "#ffdb99"
+    },
+
+    "default":{
+      "red": "QD",
+      "green": "QD",
+      "blue": "QD",
+      "single":"QD",
+      "red_power": 0.26,
+      "green_power": 0.29,
+      "blue_power": 0.26,
+      "single_power": 2.0,
+      "header":"QD",
+      "lasso_color": "red",
+      "lasso_width": 2
+    },
+
+    "ranges":{
+      "single_color_power_min":0.25,
+      "single_color_power_max":2.5,
+      "single_color_power_resolution":0.01,
+
+      "multi_color_power_min": 0.01,
+      "multi_color_power_max":1.0,
+      "multi_color_power_resolution":0.01,
+
+      "single_color_vmin":15,
+      "single_color_vmax":85,
+      "single_color_vresolution":0.1,
+
+      "multi_color_vmin":15,
+      "multi_color_vmax":85,
+      "multi_color_vresolution":0.1
+    },
+
+    "font": {
+      "bold": "Helvetica 18 bold"
+    }
+  }
+}

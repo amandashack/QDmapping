@@ -120,7 +120,7 @@ class CustomToolbar(NavigationToolbar2TkAgg):
             self.app.change_class()
 
 
-class App(tk.Tk):
+class AppColor(tk.Tk):
     """
     The main gui app for the annotating solar images,
     supports two regions: one for data preview and one for the thematic map
@@ -155,15 +155,13 @@ class App(tk.Tk):
         self.region_patches = []  # a list of drawn contours around selected thematic map regions
 
         tk.Tk.__init__(self)
-        #self.single_color_theme = 'yellow'  # color used for the single color menus
-        self.real_theme = 'yellow'
+        self.single_color_theme = 'yellow'  # color used for the single color menus
         self.canvas_size = (10, 5)  # size of the canvas frame (in inches)
         self.subplot_grid_spec = {'wspace': 0, 'hspace': 0, 'left': 0, 'bottom': 0, 'right': 1,
                                   'top': 1}  # spacing of subplots in canvas
         self.output = output  # where to save the trained fits image
-        self.shape = (data.shape[0], data.shape[1])
-        #self.data = data
-        self.image = data
+        self.shape = (data['QD'].shape[0], data['QD'].shape[1])
+        self.data = data
         self.title("The QD Mapping Utility")
         self.geometry("1200x800")
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
@@ -252,79 +250,55 @@ class App(tk.Tk):
         self.canvas_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.option_frame.pack(side=tk.RIGHT, fill=None, expand=False)
         self.make_options_frame()
+        a = time.time()
         self.make_canvas_frame()
-        #self.disable_reciprocal()
-    
-    def configure_image(self):
-    #def configure_threecolor_image(self):
+        print(time.time() - a)
+        self.disable_singlecolor()
+
+    def configure_threecolor_image(self):
         """ 
         configures the three color image according to the requested parameters 
         :return: nothing, just updates self.image
         """
-        self.editim = self.image #### this may be source of error
-        edit_options = ['erode/dil',  'open/close', 'blackhat/tophat']
-        for editor in edit_options:
-            self.editim = cv2.morphologyEx(self.editim, getattr(cv2, 'MORPH_ERODE'), 
-                                      cv2.getStructuringElement(getattr(cv2, 'MORPH_ELLIPSE'),
-                                      (self.editorop[editor].get()-10,self.editorop[editor].get()-10)), 
-                                      iterations=self.editoriter[editor].get())
-            self.editim = cv2.morphologyEx(self.editim, getattr(cv2, 'MORPH_TOPHAT'), 
-                                      cv2.getStructuringElement(getattr(cv2, 'MORPH_ELLIPSE'), 
-                                      (self.editorop[editor].get()-10,self.editorop[editor].get()-10)), 
-                                      iterations=self.editoriter[editor].get())
-            self.editim = cv2.morphologyEx(self.editim, getattr(cv2, 'MORPH_OPEN'), 
-                                      cv2.getStructuringElement(getattr(cv2, 'MORPH_ELLIPSE'), 
-                                      (self.editorop[editor].get()-10,self.editorop[editor].get()-10)), 
-                                      iterations=self.editoriter[editor].get())
-        self.image = self.editim
-        '''#order = {'red': 0, 'green': 1, 'blue': 2}
-        #self.image = np.zeros((self.shape[0], self.shape[1], 3))
-        #for color, var in self.multicolorvars.items():
-        ############### this kind of thing will need to be done if you want to create the dropdown menu
-        #    channel = var.get()  # determine which channel should be plotted as this color
-            #self.image[:, :, order[color]] = self.data[channel]
+        order = {'red': 0, 'green': 1, 'blue': 2}
+        self.image = np.zeros((self.shape[0], self.shape[1], 3))
+        for color, var in self.multicolorvars.items():
+            channel = var.get()  # determine which channel should be plotted as this color
+            self.image[:, :, order[color]] = self.data[channel]
 
             # scale the image by the power
-            #self.image[:, :, order[color]] = np.power(self.image[:, :, order[color]],
+            self.image[:, :, order[color]] = np.power(self.image[:, :, order[color]],
                                                       self.multicolorpower[color].get())
 
             # adjust the percentile thresholds
-            #lower = np.nanpercentile(self.image[:, :, order[color]], self.multicolormin[color].get())
-            #upper = np.nanpercentile(self.image[:, :, order[color]], self.multicolormax[color].get())
-            #self.image[np.where(self.image[:, :, order[color]] < lower)] = lower
-            #self.image[np.where(self.image[:, :, order[color]] > upper)] = upper
+            lower = np.nanpercentile(self.image[:, :, order[color]], self.multicolormin[color].get())
+            upper = np.nanpercentile(self.image[:, :, order[color]], self.multicolormax[color].get())
+            self.image[np.where(self.image[:, :, order[color]] < lower)] = lower
+            self.image[np.where(self.image[:, :, order[color]] > upper)] = upper
 
         # image values must be between (0,1) so scale image
-        #for color, index in order.items():
-        #    self.image[:, :, index] /= np.nanmax(self.image[:, :, index])'''
+        for color, index in order.items():
+            self.image[:, :, index] /= np.nanmax(self.image[:, :, index])
 
-    '''#def configure_reciprocal_image(self, scale=False):
+    def configure_singlecolor_image(self, scale=False):
         """
         configures the single color image according to the requested parameters
         :return: nothing, just updates self.image
         """
-        
-        configures the reciprocal image. First you need to blur it, 
-        find the centers of mass, select your region, and then
-        let it go into reciprocal space.
-        Once it is there it will at first measure the angles and distances
-        for you and print it out on the screen
-
-        
-        #self.image=data
         # determine which channel to use
-        #self.image = self.data[self.singlecolorvar.get()]
+        self.image = self.data[self.singlecolorvar.get()]
 
         # scale the image by requested power
-        #self.image = np.power(self.image, self.singlecolorpower.get())
+        self.image = np.power(self.image, self.singlecolorpower.get())
+
         # adjust the percentile thresholds
-        #lower = np.nanpercentile(self.image, self.singlecolormin.get())
-        #upper = np.nanpercentile(self.image, self.singlecolormax.get())
-        #self.image[self.image < lower] = lowe
-        #self.image[self.image > upper] = upper
+        lower = np.nanpercentile(self.image, self.singlecolormin.get())
+        upper = np.nanpercentile(self.image, self.singlecolormax.get())
+        self.image[self.image < lower] = lower
+        self.image[self.image > upper] = upper
 
         # image values must be between (0,1) so scale image
-        #self.image /= np.nanmax(self.image)'''
+        self.image /= np.nanmax(self.image)
 
     def updateArray(self, array, indices, value):
         """
@@ -372,8 +346,7 @@ class App(tk.Tk):
         self.canvas.mpl_connect('key_press_event', self.onpress)
         # set up the channel data view
         b = time.time()
-        #self.configure_threecolor_image()
-        self.configure_image()
+        self.configure_threecolor_image()
         print(time.time()-b)
         self.imageplot = self.imageax.imshow(self.image)
         self.imageax.set_xlim([0, self.shape[1]])
@@ -532,11 +505,9 @@ class App(tk.Tk):
         self.tab_frame.add(self.tab_classify, text="Classify")
         self.tab_frame.pack(fill=tk.BOTH, expand=True)
 
-    def real_space(self):
-        """ swap from reciprocal space back to real space"""
-        # disable the multicolor image --------- the reciprocal space image
-        
-        '''
+    def disable_multicolor(self):
+        """ swap from the multicolor image to the single color image """
+        # disable the multicolor image
         for color in ['red', 'green', 'blue']:
             self.multicolorscales[color].config(state=tk.DISABLED, bg='grey')
             self.multicolorframes[color].config(bg='grey')
@@ -546,23 +517,19 @@ class App(tk.Tk):
             self.multicolormaxscale[color].config(bg='grey', state=tk.DISABLED)
 
         # enable the single color
-        self.realscale.config(state=tk.NORMAL, bg=self.single_color_theme) --------- self.real_theme
-        self.realframe.config(bg=self.single_color_theme)
-        self.reallabel.config(bg=self.single_color_theme)
-        self.realdropdown.config(bg=self.single_color_theme, state=tk.NORMAL)
-        self.realminscale.config(bg=self.single_color_theme, state=tk.NORMAL)
-        self.singlecolormaxscale.config(bg=self.single_color_theme, state=tk.NORMAL)'''
-        for editor in ['erode/dil', 'open/close', 'blackhat/tophat']:
-            self.opeditorscale[editor].config(state=tk.NORMAL, bg='red')
-            self.itereditorscale[editor].config(state=tk.NORMAL, bg='green')
-            self.editorlabels[editor].config()
+        self.singlecolorscale.config(state=tk.NORMAL, bg=self.single_color_theme)
+        self.singlecolorframe.config(bg=self.single_color_theme)
+        self.singlecolorlabel.config(bg=self.single_color_theme)
+        self.singlecolordropdown.config(bg=self.single_color_theme, state=tk.NORMAL)
+        self.singlecolorminscale.config(bg=self.single_color_theme, state=tk.NORMAL)
+        self.singlecolormaxscale.config(bg=self.single_color_theme, state=tk.NORMAL)
 
-    '''def disable_real(self):
+    def disable_singlecolor(self):
         """ swap from the single color image to the multicolor image """
-        # enable the multicolor ----- the reciprocal
+        # enable the multicolor
         for color in ['red', 'green', 'blue']:
             self.multicolorscales[color].config(state=tk.NORMAL, bg=color)
-            self.multicoloframes[color].config(bg=color)
+            self.multicolorframes[color].config(bg=color)
             self.multicolorlabels[color].config(bg=color)
             self.multicolordropdowns[color].config(bg=color, state=tk.NORMAL)
             self.multicolorminscale[color].config(bg=color, state=tk.NORMAL)
@@ -574,42 +541,41 @@ class App(tk.Tk):
         self.singlecolorlabel.config(bg='grey')
         self.singlecolordropdown.config(bg='grey', state=tk.DISABLED)
         self.singlecolorminscale.config(bg="grey", state=tk.DISABLED)
-        self.singlecolormaxscale.config(bg="grey", state=tk.DISABLED)'''
+        self.singlecolormaxscale.config(bg="grey", state=tk.DISABLED)
 
-    '''def update_button_action(self):
+    def update_button_action(self):
         """ when update button is clicked, refresh the data preview"""
-        if self.mode.get() == 3:  # threecolor ---- real
-            self.configure_real()
-        elif self.mode.get() == 1:  # singlecolor ---- reciprocal
-            self.configure_reciprocal()
+        if self.mode.get() == 3:  # threecolor
+            self.configure_threecolor_image()
+        elif self.mode.get() == 1:  # singlecolor
+            self.configure_singlecolor_image()
         else:
             raise ValueError("mode can only be singlecolor or threecolor")
 
         self.imageplot.set_data(self.image)
-        if self.mode.get() == 1:  # singlecolor ------ reciprocal
+        if self.mode.get() == 1:  # singlecolor
             self.imageplot.set_cmap('gist_gray')
-        self.fig.canvas.draw_idle()'''
+        self.fig.canvas.draw_idle()
 
     def make_configure_tab(self):
         """ initial set up of configure tab"""
         # Setup the choice between single and multicolor
         modeframe = tk.Frame(self.tab_configure)
         self.mode = tk.IntVar()
-        real = tk.Radiobutton(modeframe, text="no editor", variable=self.mode,
-                                     value=3, command=lambda: self.real_space())
-        #reciprocal = tk.Radiobutton(modeframe, text="Reciprocal", variable=self.mode,
-        #                            value=1, command=lambda: self.reciprocal_space())
+        singlecolor = tk.Radiobutton(modeframe, text="Single color", variable=self.mode,
+                                     value=1, command=lambda: self.disable_multicolor())
+        multicolor = tk.Radiobutton(modeframe, text="Three color", variable=self.mode,
+                                    value=3, command=lambda: self.disable_singlecolor())
         self.mode.set(3)
-        real.pack(side=tk.LEFT)
-        #reciprocal.pack(side=tk.LEFT)
+        singlecolor.pack(side=tk.LEFT)
+        multicolor.pack(side=tk.LEFT)
 
-        #updatebutton = tk.Button(master=modeframe, text="Update",
-        #                         command=self.update_button_action)
-        #updatebutton.pack(side=tk.RIGHT)
+        updatebutton = tk.Button(master=modeframe, text="Update",
+                                 command=self.update_button_action)
+        updatebutton.pack(side=tk.RIGHT)
         modeframe.grid(row=0, column=0)
-        #self.setup_multicolor()
-        #self.setup_singlecolor()
-        self.setup_config_tab()
+        self.setup_multicolor()
+        self.setup_singlecolor()
 
     def make_classify_tab(self):
         """ initial set up of classification tab"""
@@ -637,212 +603,99 @@ class App(tk.Tk):
                                command=self.undobutton_action)
         undobutton.grid(row=6, column=0, columnspan=2, sticky=tk.W + tk.E)
 
-    
-    ''' def setup_config_tab(self):
+    def setup_singlecolor(self):
         """ initial setup of single color options and variables"""
-        #self.singlecolorframe = tk.Frame(self.tab_configure, bg=self.single_color_theme)
-        self.eframe = tk.Frame(self.tab_configure, bg=self.real_theme)
-        self.oframe = tk.Frame(self.tab_configure, bg=self.real_theme)
-        self.bframe = tk.Frame(self.tab_configure, bg=self.real_theme)
-        edit_options = ['erode/dilate',  'open/close', 'blackhat/tophat']
-        #channel_choices = sorted(list(self.data.keys()))
-        #self.singlecolorlabel = tk.Label(self.singlecolorframe, text="single", bg=self.single_color_theme, width=10)
-        self.erodedialabel = tk.Label(self.eframe, text = "erode/dilate", bg=self.real_theme, width=10)
-        self.opencloselabel = tk.Label(self.oframe, text = "open/close", bg=self.real_theme, width=10)
-        self.blackhatlabel = tk.Label(self.bframe, text = "blackhat/tophat", bg=self.real_theme, width=10)
-        #self.singlecolorvar = tk.StringVar()
-        ###this is for the dropdown menu self.realvar = tk.StringVar()
-        #self.singlecolorpower = tk.DoubleVar()
-        self.erodediaop = tk.DoubleVar()
-        self.erodediaiter = tk.DoubleVar()
-        #self.singlecolormin = tk.DoubleVar()
-        self.opencloseop = tk.DoubleVar()
-        self.opencloseiter = tk.DoubleVar()
-        #self.singlecolormax = tk.DoubleVar()
-        self.blackhatop = tk.DoubleVar()
-        self.blackhatiter = tk.DoubleVar()
-        #self.singlecolordropdown = tk.OptionMenu(self.singlecolorframe, self.singlecolorvar, *channel_choices)
-        ##### the dropdown menu does not need to exist
-        #self.singlecolorscale = tk.Scale(self.singlecolorframe, variable=self.singlecolorpower,
-        #                                 orient=tk.HORIZONTAL, from_=self.config.ranges['single_color_power_min'],
-        #                                 bg=self.single_color_theme,
-        #                                 to_=self.config.ranges['single_color_power_max'],
-        #                                 resolution=self.config.ranges['single_color_power_resolution'],
-        #                                 length=200)
-        self.erodediaopscale = tk.Scale(self.eframe, variable = self.erodediaop,
-                                      orient = tk.HORIZONTAL, from_=self.config.ranges['op_size_min'],
-                                      bg = self.real_theme,
-                                      to_=self.config.ranges['op_size_max'],
-                                      resolution= self.config.ranges['op_size_resolution'],
-                                      length=200)
-        self.erodediaiterscale = tk.Scale(self.eframe, variable = self.erodediaiter,
-                                          orient = tk.HORIZONTAL, from_=self.config.ranges['iters_min'],
-                                          bg = self.real_theme,
-                                          to_=self.config.ranges['iters_max'],
-                                          resolution=self.config.ranges['iters_resolution'],
-                                          length = 200)                    
-        #self.singlecolorminscale = tk.Scale(self.singlecolorframe, variable=self.singlecolormin,
-        #                                    orient=tk.HORIZONTAL, from_=0,
-        #                                    bg=self.single_color_theme,
-        #                                    to_=self.config.ranges['single_color_vmin'],
-        #                                    resolution=self.config.ranges['single_color_vresolution'], length=200)
-        self.opencloseopscale = tk.Scale(self.oframe, variable = self.opencloseop,
-                                       orient=tk.HORIZONTAL, from_=self.config.ranges['op_size_min'],
-                                       bg=self.real_theme,
-                                       to_=self.config.ranges['op_size_max'],
-                                       length=400)
-        self.opencloseiterscale = tk.Scale(self.oframe, variable = self.opencloseiter,
-                                          orient = tk.HORIZONTAL, from_=self.config.ranges['iters_min'],
-                                          bg = self.real_theme,
-                                          to_=self.config.ranges['iters_max'],
-                                          resolution=self.config.ranges['iters_resolution'],
-                                          length = 200) 
-        #self.singlecolormaxscale = tk.Scale(self.singlecolorframe, variable=self.singlecolormax,
-        #                                    orient=tk.HORIZONTAL, from_=self.config.ranges['single_color_vmax'],
-        #                                    bg=self.single_color_theme,
-        #                                    to_=100, resolution=self.config.ranges['single_color_vresolution'],
-        #                                    length=200)
-        self.blackhatopscale = tk.Scale(self.bframe, variable = self.blackhatop,
-                                       orient=tk.HORIZONTAL, from_=self.config.ranges['op_size_min'],
-                                       bg=self.real_theme,
-                                       to_=self.config.ranges['op_size_max'],
-                                       length=400)
-        self.blackhatiterscale = tk.Scale(self.bframe, variable = self.blackhatiter,
-                                          orient = tk.HORIZONTAL, from_=self.config.ranges['iters_min'],
-                                          bg = self.real_theme,
-                                          to_=self.config.ranges['iters_max'],
-                                          resolution=self.config.ranges['iters_resolution'],
-                                          length = 200) 
-        #self.singlecolorvar.set(self.config.products_map[self.config.default['single']])
-        ##### dont need because we dont need the dropdown
-        #self.singlecolorpower.set(self.config.default['single_power'])
-        ########### add/change if you want a certain editor to start with a certain value
-        #self.singlecolormin.set(0)
-        self.erodediaop.set(0)
-        #self.singlecolormax.set(100)
-        self.opencloseop.set(0)
-        self.blackhatop.set(0)
-        self.erodediaiter.set(0)
-        self.opencloseiter.set(0)
-        self.blackhatiter.set(0)
-        #self.singlecolordropdown.config(bg=self.single_color_theme, width=10)
-        #self.singlecolorlabel.pack(side=tk.LEFT)
-        self.erodedialabel.pack(side=tk.LEFT)
-        self.erodediaopscale.pack(side=tk.RIGHT)
-        self.erodediaiterscale.pack(side=tk.RIGHT)
-        self.eframe.grid(row=1,columnspan=3, rowspan=1)
+        self.singlecolorframe = tk.Frame(self.tab_configure, bg=self.single_color_theme)
+        channel_choices = sorted(list(self.data.keys()))
+        self.singlecolorlabel = tk.Label(self.singlecolorframe, text="single", bg=self.single_color_theme, width=10)
+        self.singlecolorvar = tk.StringVar()
+        self.singlecolorpower = tk.DoubleVar()
+        self.singlecolormin = tk.DoubleVar()
+        self.singlecolormax = tk.DoubleVar()
+        self.singlecolordropdown = tk.OptionMenu(self.singlecolorframe, self.singlecolorvar, *channel_choices)
+        self.singlecolorscale = tk.Scale(self.singlecolorframe, variable=self.singlecolorpower,
+                                         orient=tk.HORIZONTAL, from_=self.config.ranges['single_color_power_min'],
+                                         bg=self.single_color_theme,
+                                         to_=self.config.ranges['single_color_power_max'],
+                                         resolution=self.config.ranges['single_color_power_resolution'],
+                                         length=200)
+        self.singlecolorminscale = tk.Scale(self.singlecolorframe, variable=self.singlecolormin,
+                                            orient=tk.HORIZONTAL, from_=0,
+                                            bg=self.single_color_theme,
+                                            to_=self.config.ranges['single_color_vmin'],
+                                            resolution=self.config.ranges['single_color_vresolution'], length=200)
 
-        self.opencloselabel.pack(side=tk.LEFT)
-        self.opencloseopscale.pack(side=tk.RIGHT)
-        self.opencloseiterscale.pack(self=tk.RIGHT)
-        self.oframe.grid(row=2,columnspan=2,rowspan=1)
+        self.singlecolormaxscale = tk.Scale(self.singlecolorframe, variable=self.singlecolormax,
+                                            orient=tk.HORIZONTAL, from_=self.config.ranges['single_color_vmax'],
+                                            bg=self.single_color_theme,
+                                            to_=100, resolution=self.config.ranges['single_color_vresolution'],
+                                            length=200)
 
-        self.blackhatlabel.pack(side=tk.LEFT)
-        self.blackhatoplabel.pack(side=tk.RIGHT)
-        self.blackhatiterscale.pack(side=tk.RIGHT)
-        self.bframe.grid(row=3,columnspan=2,rowspan=1)
-        
-        
-        #self.singlecolorscale.pack(side=tk.RIGHT)
-        #self.singlecolormaxscale.pack(side=tk.RIGHT)
-        #self.singlecolorminscale.pack(side=tk.RIGHT)
-        
-        #self.singlecolordropdown.pack()
-        #self.singlecolorframe.grid(row=4, columnspan=5, rowspan=1)'''
+        self.singlecolorvar.set(self.config.products_map[self.config.default['single']])
+        self.singlecolorpower.set(self.config.default['single_power'])
+        self.singlecolormin.set(0)
+        self.singlecolormax.set(100)
+        self.singlecolordropdown.config(bg=self.single_color_theme, width=10)
+        self.singlecolorlabel.pack(side=tk.LEFT)
+        self.singlecolorscale.pack(side=tk.RIGHT)
+        self.singlecolormaxscale.pack(side=tk.RIGHT)
+        self.singlecolorminscale.pack(side=tk.RIGHT)
+        self.singlecolordropdown.pack()
+        self.singlecolorframe.grid(row=4, columnspan=5, rowspan=1)
 
-    def setup_config_tab(self):
-    ###def setup_multicolor(self):
-        ####""" initial setup of multicolor options and variables"""
-        # initial setup of reciprocal image
-        #### Setup the options for multicolor
-        #setup options for reciprocal - will have the same options as real (constrast and such)
-        #multicolormasterframe = tk.Frame(self.tab_configure)
-        realspacemasterframe = tk.Frame(self.tab_configure)
-        #channel_choices = sorted(list(self.data.keys())) 
-        edit_options = ['erode/dil',  'open/close', 'blackhat/tophat']
-        #rgb = ['red', 'green', 'blue']
-        self.editorframe = {editor: tk.Frame(realspacemasterframe) for editor in edit_options}
-        #self.multicolorlabels = {color: tk.Label(self.multicolorframes[color], text=color, bg=color, width=10) for color in rgb}
-        self.editorlabels = {editor: tk.Label(self.editorframe[editor], width=10) for editor in edit_options}
-        #self.multicolorvars = {color: tk.StringVar() for color in rgb}
-        self.editorvars = {editor: tk.StringVar() for editor in edit_options}
-        self.editorop = {editor: tk.IntVar() for editor in edit_options}
-        self.editoriter = {editor: tk.IntVar() for editor in edit_options}
-        #self.multicolorpower = {color: tk.DoubleVar() for color in rgb}
-        ##### dont need - self.editorpower = {editor: tk.DoubleVar() for editor in edit_options}
-        #self.multicolormin = {color: tk.DoubleVar() for color in rgb}
+    def setup_multicolor(self):
+        """ initial setup of multicolor options and variables"""
+        # Setup the options for multicolor
+        multicolormasterframe = tk.Frame(self.tab_configure)
+        channel_choices = sorted(list(self.data.keys()))
+        rgb = ['red', 'green', 'blue']
+        self.multicolorframes = {color: tk.Frame(multicolormasterframe, bg=color) for color in rgb}
+        self.multicolorlabels = {color: tk.Label(self.multicolorframes[color], text=color, bg=color, width=10) for color
+                                 in rgb}
+        self.multicolorvars = {color: tk.StringVar() for color in rgb}
+        self.multicolorpower = {color: tk.DoubleVar() for color in rgb}
+        self.multicolormin = {color: tk.DoubleVar() for color in rgb}
+        self.multicolormax = {color: tk.DoubleVar() for color in rgb}
 
-        #self.multicolordropdowns = {color: tk.OptionMenu(self.multicolorframes[color],
-        #                                                 self.multicolorvars[color],
-        #                                                 *channel_choices) for color in rgb}
-        ###### do not need the dropdown menu
+        self.multicolordropdowns = {color: tk.OptionMenu(self.multicolorframes[color],
+                                                         self.multicolorvars[color],
+                                                         *channel_choices) for color in rgb}
 
-        #self.multicolorscales = {color: tk.Scale(self.multicolorframes[color],
-        #                                         variable=self.multicolorpower[color],
-        #                                         orient=tk.HORIZONTAL,
-        #                                         from_=self.config.ranges['multi_color_power_min'],
-        #                                         to_=self.config.ranges['multi_color_power_max'], bg=color,
-        #                                         resolution=self.config.ranges['multi_color_power_resolution'],
-        #                                         length=200) for color in rgb}
-        self.opeditorscale = {editor: tk.Scale(self.editorframe[editor],
-                                              variable = self.editorop[editor],
-                                              orient=tk.HORIZONTAL,
-                                              from_=self.config.ranges['op_size_min'],
-                                              to_=self.config.ranges['op_size_max'],
-                                              bg=self.real_theme, resolution = self.config.ranges['op_size_resolution'],
-                                              length = 400) for editor in edit_options}
-        self.itereditorscale = {editor: tk.Scale(self.editorframe[editor],
-                                                variable = self.editoriter[editor],
-                                                orient=tk.HORIZONTAL,
-                                                from_=self.config.ranges['iters_min'],
-                                                bg = self.real_theme,
-                                                to_=self.config.ranges['iters_max'],
-                                                resolution = self.config.ranges['iters_resolution'],
-                                                length = 200) for editor in edit_options}
-        #self.multicolorminscale = {color: tk.Scale(self.multicolorframes[color],
-        #                                          variable=self.multicolormin[color],
-        #                                           orient=tk.HORIZONTAL, from_=0,
-        #                                           to_=self.config.ranges['multi_color_vmin'], bg=color,
-        #                                           resolution=self.config.ranges['multi_color_vresolution'],
-        #                                           length=200) for color in rgb}
-        #self.iterseditorscale = {editor: tk.Scale(self.editorframes[editor],
-        #                                      variable = self.editorpower[editor]
-        #                                      orient=tk.HORIZONTAL,
-        #                                      from_=self.config.ranges['op_size_power_min'],
-        #                                      to_=self.config.ranges['op_size_power_max'],
-        #                                      bg=editor, resolution = self.config.ranges['op_size_power_resolution'],
-        #                                      length = 200) for editor in edit_options}
-        #self.multicolormaxscale = {color: tk.Scale(self.multicolorframes[color],
-        #                                           variable=self.multicolormax[color],
-        #                                           orient=tk.HORIZONTAL, from_=self.config.ranges['multi_color_vmax'],
-        #                                           to_=100, bg=color,
-        #                                           resolution=self.config.ranges['multi_color_vresolution'],
-        #                                           length=200) for color in rgb}
+        self.multicolorscales = {color: tk.Scale(self.multicolorframes[color],
+                                                 variable=self.multicolorpower[color],
+                                                 orient=tk.HORIZONTAL,
+                                                 from_=self.config.ranges['multi_color_power_min'],
+                                                 to_=self.config.ranges['multi_color_power_max'], bg=color,
+                                                 resolution=self.config.ranges['multi_color_power_resolution'],
+                                                 length=200) for color in rgb}
+        self.multicolorminscale = {color: tk.Scale(self.multicolorframes[color],
+                                                   variable=self.multicolormin[color],
+                                                   orient=tk.HORIZONTAL, from_=0,
+                                                   to_=self.config.ranges['multi_color_vmin'], bg=color,
+                                                   resolution=self.config.ranges['multi_color_vresolution'],
+                                                   length=200) for color in rgb}
+        self.multicolormaxscale = {color: tk.Scale(self.multicolorframes[color],
+                                                   variable=self.multicolormax[color],
+                                                   orient=tk.HORIZONTAL, from_=self.config.ranges['multi_color_vmax'],
+                                                   to_=100, bg=color,
+                                                   resolution=self.config.ranges['multi_color_vresolution'],
+                                                   length=200) for color in rgb}
 
-        #for color in rgb:
-        for editor in edit_options:
-            #self.multicolorvars[color].set(self.config.products_map[self.config.default[color]])
-            #self.editorvars[editor].set(self.products_map[self.config.default[editor]])
-            ######## will add if want to add dropdown menu
-            #self.multicolorpower[color].set(self.config.default[color + "_power"])
-            ######## set to 0 for now, might want to add enable/disable here if setting them to 0 is not good
-            #self.multicolormin[color].set(0)
-            self.editorop[editor].set(15)
-            #self.multicolormax[color].set(100)
-            self.editoriter[editor].set(2)
-            #self.multicolordropdowns[color].config(bg=color, width=10)
-            #self.multicolorlabels[color].pack(side=tk.LEFT)
-            self.editorlabels[editor].pack(side=tk.LEFT)
-            #self.multicolorscales[color].pack(side=tk.RIGHT)
-            self.opeditorscale[editor].pack(side=tk.RIGHT)
-            #self.multicolormaxscale[color].pack(side=tk.RIGHT)
-            self.itereditorscale[editor].pack(side=tk.RIGHT)
-            #self.multicolorminscale[color].pack(side=tk.RIGHT)
-            #self.multicolordropdowns[color].pack()
-            #self.multicolorframes[color].pack(fill=tk.BOTH)
-            self.editorframe[editor].pack(fill=tk.BOTH)
-        #multicolormasterframe.grid(row=1, column=0, columnspan=5, rowspan=3)
-        realspacemasterframe.grid(row=1, column=0, columnspan=3, rowspan=3)
+        for color in rgb:
+            self.multicolorvars[color].set(self.config.products_map[self.config.default[color]])
+            self.multicolorpower[color].set(self.config.default[color + "_power"])
+
+            self.multicolormin[color].set(0)
+            self.multicolormax[color].set(100)
+            self.multicolordropdowns[color].config(bg=color, width=10)
+            self.multicolorlabels[color].pack(side=tk.LEFT)
+
+            self.multicolorscales[color].pack(side=tk.RIGHT)
+            self.multicolormaxscale[color].pack(side=tk.RIGHT)
+            self.multicolorminscale[color].pack(side=tk.RIGHT)
+            self.multicolordropdowns[color].pack()
+            self.multicolorframes[color].pack(fill=tk.BOTH)
+        multicolormasterframe.grid(row=1, column=0, columnspan=5, rowspan=3)
 
     def undobutton_action(self):
         """ when undo is clicked, revert the thematic map to the previous state"""
@@ -920,4 +773,3 @@ class App(tk.Tk):
         """
         # fill everything with empty outer space
         self.selection_array[:, :] = self.config.QD_class_index['unlabeled']
-

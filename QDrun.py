@@ -3,6 +3,7 @@
 Current Notes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 - add a big O tester for the marking of the image to get it to run the fastest
+- file extentions specific to the program
 '''
 import argparse
 import os
@@ -17,6 +18,7 @@ from tkinter import filedialog
 from tkinter import *
 import datetime
 from mapping.fileio import get_dates_link, get_dates_file
+from mapping.QDguiColor import AppColor
 from mapping.QDgui import App
 from mapping.config import Config
 
@@ -35,6 +37,7 @@ def get_args():
     
     ap.add_argument("--blank", action="store_true", help="don't draw suggestions")
     ap.add_argument('--load', help="an old thematic map to load and draw on")
+    ap.add_argument('--color', action='store_true', help='using a color image')
     return ap.parse_args()
 
 
@@ -44,6 +47,7 @@ if __name__ == "__main__":
 
     args = get_args()
     config = Config(args.config)
+    print(args)
     if args.verbose:
         print("Launching trainer")
     
@@ -53,6 +57,9 @@ if __name__ == "__main__":
 
     if args.load and args.blank:
         raise RuntimeError("Cannot specify both an old file to draw on and blank")
+    
+    if args.color:
+        print('The program runs slower with 3 color images, do not include --color if you wish to proceed with a black and white image')
 
    #this needs to be fixed
     if args.load is not None:
@@ -60,15 +67,6 @@ if __name__ == "__main__":
         root = tkinter.Tk()
         root.withdraw()
         filepath = filedialog.askopenfilename()
-        '''pool = mp.Pool(cores)
-        jobs = []
-        with open(filepath, 0) as f:
-            for line in f:
-                jobs.append(pool.apply_async(process, (line)))
-        for job in jobs:
-            job.get()
-        pool.close()
-        '''
         #data = {'QD': cv2.imread(filepath, 0)}
         print('now choose the marked map')
         root = tkinter.Tk()
@@ -77,14 +75,22 @@ if __name__ == "__main__":
         old_thmap = {'QD': cv2.imread(filepath, 0)}
         App(data, out_file_name, args.config, relabel=old_thmap).mainloop()
     else:
-        root = tkinter.Tk()
-        root.withdraw()
-        filepath = filedialog.askopenfilename()
-        b = time.time()
-        data = {'QD': cv2.imread(filepath, 0)[:4085,:]}
-        print(time.time() - b)
-        out_file_name = 'QDmap.'
-        App(data, out_file_name, args.config).mainloop()
+        if args.color:
+            root = tkinter.Tk()
+            root.withdraw()
+            filepath = filedialog.askopenfilename()
+            data = {'QD': cv2.imread(filepath)[:4085,:]}
+            out_file_name = 'QDmap.'
+            AppColor(data, out_file_name, args.config).mainloop()
+        else:
+            root = tkinter.Tk()
+            root.withdraw()
+            filepath = filedialog.askopenfilename()
+            print('You are using a black and white image, if you would like to use a color image include --color in the command line.')
+            #print(cv2.imread(filepath).shape, cv2.imread(filepath, 0).shape) #------ ((image, 3 channels), (image, 1 channel)) color vs black and white
+            data = cv2.imread(filepath, 0)[:4085,:]
+            out_file_name = 'QDmap.'
+            App(data, out_file_name, args.config).mainloop()
     # Load data and organize input
     #f = Fetcher(date, products=config.products, verbose=args.verbose)
     #results = f.fetch()

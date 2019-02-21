@@ -33,35 +33,23 @@
     },
 
     "default":{
-      "red": "QD",
-      "green": "QD",
-      "blue": "QD",
-      "single":"QD",
-      "red_power": 0.26,
-      "green_power": 0.29,
-      "blue_power": 0.26,
-      "single_power": 2.0,
+      "erode/dil": "erode/dilate",
+      "open/close": "open/close",
+      "blackhat/tophat": "blackhat/tophat",
       "header":"QD",
       "lasso_color": "red",
       "lasso_width": 2
     },
 
     "ranges":{
-      "single_color_power_min":0.25,
-      "single_color_power_max":2.5,
-      "single_color_power_resolution":0.01,
+      "op_size_min":12,
+      "op_size_max":20,
+      "op_size_resolution":1,
 
-      "multi_color_power_min": 0.01,
-      "multi_color_power_max":1.0,
-      "multi_color_power_resolution":0.01,
+      "iters_min": 0,
+      "iters_max":10,
+      "iters_resolution":1
 
-      "single_color_vmin":15,
-      "single_color_vmax":85,
-      "single_color_vresolution":0.1,
-
-      "multi_color_vmin":15,
-      "multi_color_vmax":85,
-      "multi_color_vresolution":0.1
     },
 
     "font": {

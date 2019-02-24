@@ -56,6 +56,7 @@ class Ui_MainWindow(object):
         self.ogImage = QtWidgets.QGraphicsView(self.scrollAreaWidgetContents_2)
         self.ogImage.setObjectName("ogImage")
         self.horizontalLayout.addWidget(self.ogImage)
+        self.ogImage.setScene(self.ogImageScene)
         self.imageMapScene = QGraphicsScene()
         self.imageMap = QtWidgets.QGraphicsView(self.scrollAreaWidgetContents_2)
         self.imageMap.setObjectName("imageMap")
@@ -201,9 +202,11 @@ class Ui_MainWindow(object):
 
         self.image = QPixmap()
         self.pixmap = QPixmap()
-        self.viewer = photoViewer(self.ogImage, self.ogImageScene)
+        self.viewer = photoViewer(self.ogImage, self.ogImageScene, 600, 600)
         
         self.actionZoom_In.triggered.connect(self.handleZoomIn)
+        self.actionZoom_Out.triggered.connect(self.handleZoomOut)
+        self.actionNormal_Size.triggered.connect(self.handleNormalSize)
         self.actionOpen.triggered.connect(self.setImage)
         
         #self.ogImage.mousePressEvent = drawingTool.mousePressEvent(self, event)
@@ -251,42 +254,74 @@ class Ui_MainWindow(object):
     
     def setImage(self):
          
-         self.ogImageScene.clear()
          fileName, _ = QtWidgets.QFileDialog.getOpenFileName(None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp)")
          if fileName:
              self.image = QPixmap(fileName) ###### self.image holds the original image at all times
-             self.viewer.setImage(self.image)
-
-             self.pixmap = self.viewer.scale(600, 600) #### self.pixmap is used for scaling and anything else
-             self.ogImageScene.addPixmap(self.pixmap)
-             self.ogImage.setScene(self.ogImageScene)
+             self.pixmap = self.viewer.setDefaultImage(self.image)
+             
              
 
     def handleZoomIn(self):
         self.pixmap = self.viewer.zoomIn(self.pixmap)
+    
+    def handleZoomOut(self):
+        self.pixmap = self.viewer.zoomOut(self.pixmap)
+    
+    def handleNormalSize(self):
+        self.pixmap = self.viewer.zeroZoom(self.pixmap)
 
              
         
 
 class photoViewer(object):
-    def __init__(self, ogImage, ogImageScene):
+    def __init__(self, ogImage, ogImageScene, width, height):
         self.ogImage = ogImage
         self.ogImageScene = ogImageScene
+        self._zoom = 0
+        self._width = width
+        self._height = height
 
-    def setImage(self, image):
+    def setDefaultImage(self, image):
         self.image = image
+        pixmap = self.scale(self._width, self._height)
+        self.updatePixmap(pixmap)
+        return(pixmap)
+
+    def updatePixmap(self, pixmap):
+        self.ogImageScene.clear()
+        self.ogImageScene.addPixmap(pixmap)
+        self.ogImageScene.setSceneRect(QtCore.QRectF(0.0, 0.0, pixmap.width(), pixmap.height()))
 
     def scale(self, width, height):
         if (self.image.isNull()):
             return(QPixmap())
         return(self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio))
+
+    def zoom(self, pixmap, factor):
+        pixmap = self.scale(pixmap.width()*factor, pixmap.height()*factor)
+        self.updatePixmap(pixmap)
+        return(pixmap)
         
     def zoomIn(self, pixmap):
         self._zoom += 1
         factor = 1.25
-        pixmap = self.scale(pixmap.width()*factor, pixmap.height()*factor)
-        self.ogImageScene.addPixmap(pixmap)
-        return(pixmap)
+        return(self.zoom(pixmap, factor))
+    
+    def zoomOut(self, pixmap):
+        if self._zoom == 0:
+            return(pixmap)
+        self._zoom -= 1
+        factor = 0.75
+        return(self.zoom(pixmap, factor))
+    
+    def zeroZoom(self, pixmap):
+        if self._zoom == 0:
+            return(pixmap)
+        pixmap = self.scale(self._width, self._height) #### self.pixmap is used for scaling and anything else
+        self.updatePixmap(pixmap)
+        return (pixmap)
+
+        
 
 
 import resource

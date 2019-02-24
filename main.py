@@ -8,8 +8,10 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView
 from PyQt5.QtGui import QPixmap, QPainter, QPen
+#from tools.py import drawingTool
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -50,12 +52,14 @@ class Ui_MainWindow(object):
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setSpacing(6)
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.ogImage = QtWidgets.QLabel(self.scrollAreaWidgetContents_2)
+        self.ogImageScene = QGraphicsScene()
+        self.ogImage = QtWidgets.QGraphicsView(self.scrollAreaWidgetContents_2)
         self.ogImage.setObjectName("ogImage")
         self.horizontalLayout.addWidget(self.ogImage)
-        self.label_2 = QtWidgets.QLabel(self.scrollAreaWidgetContents_2)
-        self.label_2.setObjectName("label_2")
-        self.horizontalLayout.addWidget(self.label_2)
+        self.imageMapScene = QGraphicsScene()
+        self.imageMap = QtWidgets.QGraphicsView(self.scrollAreaWidgetContents_2)
+        self.imageMap.setObjectName("imageMap")
+        self.horizontalLayout.addWidget(self.imageMap)
         self.gridLayout_3.addLayout(self.horizontalLayout, 0, 0, 1, 1)
         self.scrollArea.setWidget(self.scrollAreaWidgetContents_2)
         self.tabWidget_2 = QtWidgets.QTabWidget(self.splitter)
@@ -66,6 +70,7 @@ class Ui_MainWindow(object):
         self.tabWidget_2.setSizePolicy(sizePolicy)
         self.tabWidget_2.setTabShape(QtWidgets.QTabWidget.Triangular)
         self.tabWidget_2.setObjectName("tabWidget_2")
+        self.tabWidget_2.setFixedHeight(200)
         self.classifyTab = QtWidgets.QWidget()
         self.classifyTab.setObjectName("classifyTab")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.classifyTab)
@@ -113,6 +118,7 @@ class Ui_MainWindow(object):
         self.tabWidget.addTab(self.reciprocalSpace, "")
         self.gridLayout.addWidget(self.tabWidget, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralWidget)
+        self.menuBar = QtWidgets.QMenuBar(MainWindow)
         self.menuBar = QtWidgets.QMenuBar(MainWindow)
         self.menuBar.setGeometry(QtCore.QRect(0, 0, 997, 26))
         self.menuBar.setObjectName("menuBar")
@@ -194,19 +200,23 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         self.image = QPixmap()
+        self.pixmap = QPixmap()
+        self.viewer = photoViewer(self.ogImage, self.ogImageScene)
+        
+        self.actionZoom_In.triggered.connect(self.handleZoomIn)
         self.actionOpen.triggered.connect(self.setImage)
-        self.ogImage.mousePressEvent = self.mousePressEvent
-        self.ogImage.mouseMoveEvent = self.mouseMoveEvent
-        self.ogImage.mouseReleaseEvent = self.mouseReleaseEvent
-        self.ogImage.paintEvent = self.paintEvent
+        
+        #self.ogImage.mousePressEvent = drawingTool.mousePressEvent(self, event)
+        #self.ogImage.mouseMoveEvent = drawingTool.mouseMoveEvent(self, event)
+        #self.ogImage.mouseReleaseEvent = drawingTool.mouseReleaseEvent(self, event)
+        #self.ogImage.paintEvent = drawingTool.paintEvent(self, event)
+        
         self.drawing = False
         self.lastPoint = QtCore.QPoint()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.ogImage.setText(_translate("MainWindow", "TextLabel"))
-        self.label_2.setText(_translate("MainWindow", "TextLabel"))
         self.pushButton.setText(_translate("MainWindow", "PushButton"))
         self.pushButton_4.setText(_translate("MainWindow", "PushButton"))
         self.pushButton_7.setText(_translate("MainWindow", "PushButton"))
@@ -240,36 +250,43 @@ class Ui_MainWindow(object):
         self.actioncircle.setText(_translate("MainWindow", "circle"))
     
     def setImage(self):
-        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp)")
-        if fileName:
-            pixmap = QtGui.QPixmap(fileName)
-            pixmap = pixmap.scaled(600, 600, QtCore.Qt.KeepAspectRatio)
-            self.image = pixmap
-            self.ogImage.setPixmap(self.image)
-            self.ogImage.setAlignment(QtCore.Qt.AlignCenter)
-            
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self.ogImage)
-        painter.drawPixmap(self.ogImage.rect(), self.image)
+         
+         self.ogImageScene.clear()
+         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp)")
+         if fileName:
+             self.image = QPixmap(fileName) ###### self.image holds the original image at all times
+             self.viewer.setImage(self.image)
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.drawing = True
-            self.lastPoint = event.pos()
+             self.pixmap = self.viewer.scale(600, 600) #### self.pixmap is used for scaling and anything else
+             self.ogImageScene.addPixmap(self.pixmap)
+             self.ogImage.setScene(self.ogImageScene)
+             
 
-    def mouseMoveEvent(self, event):
-        if event.buttons() and Qt.LeftButton and self.drawing:
-            painter = QPainter(self.image)
-            painter.setPen(QPen(Qt.red, 3, Qt.SolidLine))
-            painter.drawLine(self.lastPoint, event.pos())
-            self.lastPoint = event.pos()
-            self.ogImage.update()
+    def handleZoomIn(self):
+        self.pixmap = self.viewer.zoomIn(self.pixmap)
 
-    def mouseReleaseEvent(self, event):
-        if event.button == Qt.LeftButton:
-            self.drawing = False
-    
+             
+        
 
+class photoViewer(object):
+    def __init__(self, ogImage, ogImageScene):
+        self.ogImage = ogImage
+        self.ogImageScene = ogImageScene
+
+    def setImage(self, image):
+        self.image = image
+
+    def scale(self, width, height):
+        if (self.image.isNull()):
+            return(QPixmap())
+        return(self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio))
+        
+    def zoomIn(self, pixmap):
+        self._zoom += 1
+        factor = 1.25
+        pixmap = self.scale(pixmap.width()*factor, pixmap.height()*factor)
+        self.ogImageScene.addPixmap(pixmap)
+        return(pixmap)
 
 
 import resource

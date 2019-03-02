@@ -77,7 +77,19 @@ class photoViewer(object):
         pixmap = self.scale(pixmap.width()*factor, pixmap.height()*factor)
         self.ogImageScene.addPixmap(pixmap)
         return(pixmap)
+    def zoomOut(self, pixmap):
+        if self._zoom == 0:
+            return(pixmap)
+        self._zoom -= 1
+        factor = 0.75
+        return(self.zoom(pixmap, factor))
     
+    def zeroZoom(self, pixmap):
+        if self._zoom == 0:
+            return(pixmap)
+        pixmap = self.scale(self._width, self._height) #### self.pixmap is used for scaling and anything else
+        self.updatePixmap(pixmap)
+        return (pixmap)
     # def fitInView(self, scale=True):
     #     rect = QtCore.QRectF(self.ogImage.pixmap().rect())
     #     if not rect.isNull():

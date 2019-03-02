@@ -7,10 +7,9 @@
 # WARNING! All changes made in this file will be lost!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView
-from PyQt5.QtGui import QPixmap, QPainter, QPen
-#from tools.py import drawingTool
+from PyQt5.QtCore import Qt, QPoint, QObject, pyqtSignal
+from PyQt5.QtWidgets import QMainWindow, QApplication, QGraphicsScene, QGraphicsView, QGraphicsPixmapItem
+from PyQt5.QtGui import QPixmap, QPainter, QPen, QColor
 
 
 class Ui_MainWindow(object):
@@ -52,11 +51,9 @@ class Ui_MainWindow(object):
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setSpacing(6)
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.ogImageScene = QGraphicsScene()
         self.ogImage = QtWidgets.QGraphicsView(self.scrollAreaWidgetContents_2)
         self.ogImage.setObjectName("ogImage")
         self.horizontalLayout.addWidget(self.ogImage)
-        self.imageMapScene = QGraphicsScene()
         self.imageMap = QtWidgets.QGraphicsView(self.scrollAreaWidgetContents_2)
         self.imageMap.setObjectName("imageMap")
         self.horizontalLayout.addWidget(self.imageMap)
@@ -150,6 +147,10 @@ class Ui_MainWindow(object):
         self.actionPrint.setObjectName("actionPrint")
         self.actionExit = QtWidgets.QAction(MainWindow)
         self.actionExit.setObjectName("actionExit")
+        self.actionUndo = QtWidgets.QAction(MainWindow)
+        self.actionUndo.setObjectName("actionUndo")
+        self.actionRedo = QtWidgets.QAction(MainWindow)
+        self.actionUndo.setObjectName("actionRedo")
         self.actionZoom_In = QtWidgets.QAction(MainWindow)
         self.actionZoom_In.setObjectName("actionZoom_In")
         self.actionZoom_Out = QtWidgets.QAction(MainWindow)
@@ -176,6 +177,8 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionPrint)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionExit)
+        self.menuedit.addAction(self.actionUndo)
+        self.menuedit.addAction(self.actionRedo)
         self.menuedit.addAction(self.actionZoom_In)
         self.menuedit.addAction(self.actionZoom_Out)
         self.menuedit.addAction(self.actionNormal_Size)
@@ -198,21 +201,6 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         self.tabWidget_2.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
-        self.image = QPixmap()
-        self.pixmap = QPixmap()
-        self.viewer = photoViewer(self.ogImage, self.ogImageScene)
-        
-        self.actionZoom_In.triggered.connect(self.handleZoomIn)
-        self.actionOpen.triggered.connect(self.setImage)
-        
-        #self.ogImage.mousePressEvent = drawingTool.mousePressEvent(self, event)
-        #self.ogImage.mouseMoveEvent = drawingTool.mouseMoveEvent(self, event)
-        #self.ogImage.mouseReleaseEvent = drawingTool.mouseReleaseEvent(self, event)
-        #self.ogImage.paintEvent = drawingTool.paintEvent(self, event)
-        
-        self.drawing = False
-        self.lastPoint = QtCore.QPoint()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -239,6 +227,8 @@ class Ui_MainWindow(object):
         self.actionSave_As.setText(_translate("MainWindow", "Save As.."))
         self.actionPrint.setText(_translate("MainWindow", "Print.."))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
+        self.actionUndo.setText(_translate("MainWindow", "Undo"))
+        self.actionRedo.setText(_translate("MainWindow", "Redo"))
         self.actionZoom_In.setText(_translate("MainWindow", "Zoom In"))
         self.actionZoom_Out.setText(_translate("MainWindow", "Zoom Out"))
         self.actionNormal_Size.setText(_translate("MainWindow", "Normal Size"))
@@ -248,54 +238,18 @@ class Ui_MainWindow(object):
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionLasso.setText(_translate("MainWindow", "Lasso"))
         self.actioncircle.setText(_translate("MainWindow", "circle"))
-    
-    def setImage(self):
-         
-         self.ogImageScene.clear()
-         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp)")
-         if fileName:
-             self.image = QPixmap(fileName) ###### self.image holds the original image at all times
-             self.viewer.setImage(self.image)
-
-             self.pixmap = self.viewer.scale(600, 600) #### self.pixmap is used for scaling and anything else
-             self.ogImageScene.addPixmap(self.pixmap)
-             self.ogImage.setScene(self.ogImageScene)
-             
-
-    def handleZoomIn(self):
-        self.pixmap = self.viewer.zoomIn(self.pixmap)
-
-             
         
 
-class photoViewer(object):
-    def __init__(self, ogImage, ogImageScene):
-        self.ogImage = ogImage
-        self.ogImageScene = ogImageScene
+# import resource
 
-    def setImage(self, image):
-        self.image = image
+# if __name__ == "__main__":
+#     import sys
+#     app = QtWidgets.QApplication(sys.argv)
+#     #MainWindow = QtWidgets.QMainWindow()
+#     #ui = Ui_MainWindow()
+#     #ui.setupUi(MainWindow)
+#     #MainWindow.show()
+#     window = MyApp()
+#     window.show()
 
-    def scale(self, width, height):
-        if (self.image.isNull()):
-            return(QPixmap())
-        return(self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio))
-        
-    def zoomIn(self, pixmap):
-        self._zoom += 1
-        factor = 1.25
-        pixmap = self.scale(pixmap.width()*factor, pixmap.height()*factor)
-        self.ogImageScene.addPixmap(pixmap)
-        return(pixmap)
-
-
-import resource
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    sys.exit(app.exec_())
+#     sys.exit(app.exec_())

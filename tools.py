@@ -1,6 +1,7 @@
 import numpy as np 
 
-class drawingTool(Ui_MainWindow):
+
+class drawingTool(object):
     
 
     def paintEvent(self, event):

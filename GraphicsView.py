@@ -10,6 +10,8 @@ from GraphicsView import *
 import sys
 import time
 
+
+
 class photoViewer(object):
     def __init__(self, ogImage, ogImageScene, pixmapItem, width, height):
         self.ogImage = ogImage

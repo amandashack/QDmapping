@@ -24,6 +24,12 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.actionZoom_In.triggered.connect(self.handleZoomIn)
         self.actionZoom_Out.triggered.connect(self.handleZoomOut)
         self.actionNormal_Size.triggered.connect(self.handleNormalSize)
+        
+        self.pixmapItem.mousePressEvent = self.mousePressEvent
+    
+    def mousePressEvent(self, e):
+        if self.pixmapItem.pixmap():
+            print(e.pos())
     
     def setImage(self):
         fileName, _  = QFileDialog.getOpenFileName(None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp)")

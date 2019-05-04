@@ -498,6 +498,55 @@ class  Example4(QWidget):
         self.setWindowTitle("Grouping")
         self.setGeometry(250, 150, 300, 300)
 
+class View4(QGraphicsView):
+    def __init__(self):
+        super().__init__()
+        self.setGeometry(300, 300, 300, 300)
+
+        policy = Qt.ScrollBarAlwaysOff
+
+        self.setVerticalScrollBarPolicy(policy)
+        self.setHorizontalScrollBarPolicy(policy)
+        self.setRenderHint(QPainter.Antialiasing)
+        self.initView()
+    def initView(self):
+        self.scene = self.Scene4()
+        self.setSceneRect(0, 0, 300, 300)
+        self.setScene(self.scene)
+
+class Scene4(QGraphicsScene):
+    def __init__(self):
+        super().__init__()
+        self.initScene()
+    def initScene(self):
+        self.image = 
+
+class pixmapItem(QGraphicsPixmapItem):
+    def __init__(self):
+        super().__init__()
+        
+        self.image = QImage("blah")
+        self.image = self.image.scaled(300, 300, Qt.KeepAspectRatio)
+        self.pixmap = QPixmap(self.image)
+        self.initItem()
+
+    def initItem(self):
+        
+
+class attempt(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+    
+    def initUI(self):
+
+        hbox = QHBoxLayout()
+
+        self.view = View4()
+        hbox.addWidget(self.view)
+
+        self.setGeometry(250, 150, 300, 300)
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     #w = Example()

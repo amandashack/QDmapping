@@ -5,13 +5,47 @@ import cv2
 import numpy as np
 import sys
 import math
-
-"""
-add buttons which activate 
-"""
-import numpy as np
 import cv2
 
+from GraphicsView import *
+
+
+def nothing(x):
+    pass
+
+
+# def edit(editim, cur_mode, value):
+#         im = editim
+#         str_mode = 'ellipse'
+#         # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
+#         str_name = 'MORPH_' + str_mode.upper()
+#         oper_name = 'MORPH_' + cur_mode.upper()
+#         st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
+#         im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=value)
+#         editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations=value) #actually change full size image
+#         return(editim)
+
+        # mode = 'GaussianBlur'
+        # str_mode = None
+        # # sz, iters, op = trackbar(im, mode, str_mode)
+        # im = cv2.GaussianBlur(im, (sz, sz), iters)
+        # #im = cv2.bilateralFilter(im, iters, sz, sz)
+        # editim = cv2.GaussianBlur(editim, (sz, sz), iters)
+        # sizeset[h]['GaussianBlur'] = ('GaussianBlur', sz, iters) 
+
+        # mode = 'adaptiveThreshold'
+        # str_mode = None
+        # # sz, iters, op = trackbar(im, mode, str_mode)
+        # im = cv2.adaptiveThreshold(im, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
+        # editim = cv2.adaptiveThreshold(editim, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
+        # sizeset[h]['adaptiveThreshold'] = ('adaptiveThreshold', sz, iters)
+        # return(editim, sizeset)
+
+
+
+def drawPoints(colorim, point):
+    cv2.circle(colorim, (point[0], point[1]), 5, (0, 255, 255), -1)
+    return(colorim)
 
 def COM(binary):
 	_, contours, _ = cv2.findContours(binary.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
@@ -279,116 +313,6 @@ def draw_keypoints(vis, keypoints, color = (0, 255, 255)):
 
 ###### this is where file common.py ends
 
-def nothing(x):
-    pass
-
-def trackbar(img, cur_mode, str_mode):
-    cv2.namedWindow('edit')
-    cv2.createTrackbar('op/size', 'edit', 12, 20, nothing)
-    cv2.createTrackbar('iters', 'edit', 1, 10, nothing) 
-    res = img.copy()
-    while(1):
-        cv2.imshow('edit', res)
-        k = cv2.waitKey(1) & 0xFF
-        if k == 27:
-            return(sz, iters, op)
-            break
-        sz = cv2.getTrackbarPos('op/size', 'edit')
-        iters = cv2.getTrackbarPos('iters', 'edit')
-        opers = cur_mode.split('/')
-        if len(opers) > 1:
-            sz = sz - 10
-            op = opers[sz > 0]
-            sz = abs(sz)
-        else:
-            op = opers[0]
-        sz = sz*2+1
-        if str_mode == 'ellipse':
-            str_name = 'MORPH_' + str_mode.upper()
-            oper_name = 'MORPH_' + op.upper()
-            st = cv2.getStructuringElement(getattr(cv2, str_name), (sz, sz))
-            res = cv2.morphologyEx(img, getattr(cv2, oper_name), st, iterations=iters)
-
-            draw_str(res, (10, 20), 'mode: ' + cur_mode)
-            draw_str(res, (10, 40), 'operation: ' + oper_name)
-            draw_str(res, (10, 60), 'structure: ' + str_name)
-            draw_str(res, (10, 80), 'ksize: %d  iters: %d' % (sz, iters))
-        else:
-            if op == 'GaussianBlur':
-                res = cv2.GaussianBlur(img, (sz, sz), iters)
-                #res = cv2.bilateralFilter(img, iters, sz, sz)
-                draw_str(res, (10, 20), 'mode: Gaussian Blur')
-            if op == 'adaptiveThreshold':
-                res = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
-                draw_str(res, (10, 20), 'mode: Adaptive Threshold')
-    cv2.destroyAllWindows()
-
-'''def draw(colorim, unorderbounds):
-    for key in unorderbounds.keys():
-        for i in list(unorderbounds[key]):
-            colorim[key, i] = [0, 0, 255]
-    ##cv2.rectangle(colorim, pt1, pt2, (0, 255, 0), 1)
-    return(colorim)
-'''
-
-
-def edit(editim, sizeset):
-    h = editim.shape[0]
-    if h > 600:
-        im = editim[0:600, 0:600]
-    else:
-        im = editim
-    if h in sizeset.keys():
-        for i in sizeset[h].keys():
-            if i in ['erode/dilate', 'open/close', 'blackhat/tophat']:
-                str_mode = 'ellipse'
-                (op, sz, iters) = sizeset[h][i]
-                str_name = 'MORPH_' + str_mode.upper()
-                oper_name = 'MORPH_' + op.upper()
-                st = cv2.getStructuringElement(getattr(cv2, str_name), (sz, sz))
-                editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations=iters) #actually change full size image
-            elif i == 'GaussianBlur':
-                str_mode = None
-                (op, sz, iters) = sizeset[h][i]
-                editim = cv2.GaussianBlur(editim, (sz, sz), iters)
-                #editim = cv2.bilateralFilter(editim, iters, sz, sz)
-            else:
-                mode = 'adaptiveThreshold'
-                str_mode = None
-                (op, sz, iters) = sizeset[h][i]
-                editim = cv2.adaptiveThreshold(editim, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
-        return(editim, sizeset)
-    else:
-        sizeset[h] = {}
-        modes = ['erode/dilate', 'open/close', 'blackhat/tophat']
-        str_mode = 'ellipse'
-        for cur_mode in modes:
-            sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
-            str_name = 'MORPH_' + str_mode.upper()
-            oper_name = 'MORPH_' + op.upper()
-            st = cv2.getStructuringElement(getattr(cv2, str_name), (sz, sz))
-            im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=iters)
-            editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations=iters) #actually change full size image
-            sizeset[h][cur_mode] = (op, sz, iters)
-
-        mode = 'GaussianBlur'
-        str_mode = None
-        sz, iters, op = trackbar(im, mode, str_mode)
-        im = cv2.GaussianBlur(im, (sz, sz), iters)
-        #im = cv2.bilateralFilter(im, iters, sz, sz)
-        editim = cv2.GaussianBlur(editim, (sz, sz), iters)
-        sizeset[h]['GaussianBlur'] = ('GaussianBlur', sz, iters) 
-
-        mode = 'adaptiveThreshold'
-        str_mode = None
-        sz, iters, op = trackbar(im, mode, str_mode)
-        im = cv2.adaptiveThreshold(im, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
-        editim = cv2.adaptiveThreshold(editim, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
-        sizeset[h]['adaptiveThreshold'] = ('adaptiveThreshold', sz, iters)
-        return(editim, sizeset)
-
-###### this is where trackbar.py ends
-
 def shift_dft(src, dst=None):
     '''
           Rearrange the quadrants of Fourier image so that the origin is at
@@ -471,29 +395,37 @@ def reciprocal(im):
 ##### this is where reciprocal.py ends
 
 class Reciprocal(QWidget):
-    def __init__(self, width, height, parent = None):
+    def __init__(self, parent = None):
         super().__init__(parent)
-
-        self.width = width
-        self.height = height
         
         #self.image = self.image[selected region]
-        self.reciprocalIm = image
-        self.reciprocalIm = self.reciprocalIm.tolist()
-        bytesPerLine = 3 * width
-        self.reciprocalIm = QImage(self.reciprocalIm, self.width, self.height, bytesPerLine, QImage.Format_Mono)
-        self.reciprocalIm = QPixmap(self.reciprocalIm)
-        
         self.label = QLabel()
-        self.label.setPixmap(self.reciprocalIm)
+        if len(colorIm.shape) == 3:
+            if colorIm.shape[2] == 4:
+                qformat = QImage.Format_RGBA8888
+            else:
+                qformat = QImage.Format_RGB888
+        outImage = QImage(colorIm, colorIm.shape[1], colorIm.shape[0], colorIm.strides[0], qformat)
+        outImage = outImage.rgbSwapped()
+        self.pixmap1 = QPixmap("blah")
+        self.label.setPixmap(self.pixmap1)
+        self.show()
+        # self.reciprocalIm = image
+        # self.reciprocalIm = self.reciprocalIm
+        # bytesPerLine = 3 * width
+        # self.reciprocalIm = QImage(self.reciprocalIm, self.width, self.height, bytesPerLine, QImage.Format_Mono)
+        # self.reciprocalIm = QPixmap(self.reciprocalIm)
+        
+        # self.label = QLabel()
+        # self.label.setPixmap(self.reciprocalIm)
         
 
         
 
-class myApp(QWidget):
+class myApp1(QWidget):
     def __init__(self):
         super().__init__()
-        self.setGeometry(150, 150, 350, 300) #sets top left corner of 
+        self.setGeometry(150, 150, 600, 600) #sets top left corner of 
         #location on a screen and then the width and height of the box
         self.setWindowTitle("Reciprocal")
 
@@ -501,15 +433,20 @@ class myApp(QWidget):
     
     def initUI(self):
         hbox = QHBoxLayout()
-        self.view = QGraphicsView()
-        self.scene = QGraphicsScene()
+        self.viewog = QGraphicsView()
+        self.sceneog = QGraphicsScene()
+        self.viewrec = QGraphicsView()
+        self.scenerec = QGraphicsScene()
+
         
         self.pixmap = QPixmap("qds")
         self.pixmap = self.pixmap.scaled(500, 500, Qt.KeepAspectRatio)
-        self.scene.addPixmap(self.pixmap)
-        self.view.setScene(self.scene)
+        self.sceneog.addPixmap(self.pixmap)
+        self.viewog.setScene(self.sceneog)
+        #self.viewrec.setScene(self.scenerec)
 
-        hbox.addWidget(self.view)
+        hbox.addWidget(self.viewog)
+        hbox.addWidget(self.viewrec)
 
         frame = QFrame()
 
@@ -517,8 +454,8 @@ class myApp(QWidget):
         self.recip.setEnabled(True)
         
         self.draw = QPushButton("Select", frame)
-        self.draw.setEnabled(False)
-
+        self.draw.setEnabled(True)
+        
         vbox = QVBoxLayout()
         vbox.addWidget(self.recip)
         
@@ -533,19 +470,359 @@ class myApp(QWidget):
         self.recip.clicked.connect(self.onClick)
         
     def onClick(self):
-        self.w = Reciprocal(self.pixmap.width(), self.pixmap.height())
-        self.w.setGeometry(200, 200, 500, 500)
-        self.w.show()
+        self.displayReciprocal()
+    
+    def displayReciprocal(self):
+        self.recipIm = QPixmap("fft")
+        self.recipIm = self.recipIm.scaled(500, 500, Qt.KeepAspectRatio)
+        self.scenerec.addPixmap(self.recipIm)
+        self.viewrec.setScene(self.scenerec)
+
+class rdButton(QGroupBox):
+
+    buttonChanged = pyqtSignal(str)
+
+    def __init__(self, view):
+        super(rdButton, self).__init__()
+        self.view = view
+
+
+        # Create an array of radio buttons
+        rdButtons = [QRadioButton("Draw"), QRadioButton("Zoom"), QRadioButton("Pan"), QRadioButton("Reciprocal")]
+
+        # Set a radio button to be checked by default
+        rdButtons[0].setChecked(True)   
+
+        # Radio buttons usually are in a vertical layout   
+        button_layout = QVBoxLayout()
+
+        # Create a button group for radio buttons
+        self._button_group = QButtonGroup()
+
+        for i in range(len(rdButtons)):
+            radB = rdButtons[i]
+            # Add each radio button to the button layout
+            button_layout.addWidget(radB)
+            # Add each radio button to the button group & give it an ID of i
+            self._button_group.addButton(radB, i)
+            # Connect each radio button to a method to run when it's clicked
+            radB.clicked.connect(self.radio_button_clicked)
+
+        # Set the layout of the group box to the button layout
+        self.setLayout(button_layout)
+
+    #Print out the ID & text of the checked radio button
+    def radio_button_clicked(self):
+        if self._button_group.checkedId() == 0:
+            print(self._button_group.checkedButton().text())
+            QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
+            self.view.enableDrawing()
+
+        if self._button_group.checkedId() == 1:
+            print(self._button_group.checkedButton().text())
+            QApplication.setOverrideCursor(QCursor(Qt.CrossCursor))
+
+        if self._button_group.checkedId() == 2:
+            print(self._button_group.checkedButton().text())
+            QApplication.setOverrideCursor(QCursor(Qt.OpenHandCursor))
+
+        if self._button_group.checkedId() == 3:
+            print(self._button_group.checkedButton().text())
+            QApplication.setOverrideCursor(QCursor(Qt.PointingHandCursor))
+
+class GraphicsScene(QGraphicsScene):
+    def __init__(self, *args, **kwargs):
+        QGraphicsScene.__init__(self, *args, **kwargs)
+
+class GraphicsView(QGraphicsView):
+    def __init__(self, parent = None):
+        super(GraphicsView, self).__init__(parent)
+    
+    def initialPath(self):
+        self._path = QPainterPath()
+        pen = QPen(QColor("green"), 4, Qt.SolidLine, Qt.RoundCap)
+        self._path_item =
+    # rectChanged = pyqtSignal(QRect)
+
+    # def __init__(self, *args, **kwargs):
+    #     QGraphicsView.__init__(self, *args, **kwargs)
+    #     self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
+    #     self.setMouseTracking(True)
+    #     self.origin = QPoint()
+    #     self.changeRubberBand = False
+    
+    # def mousePressEvent(self, e):
+    #     self.origin = e.pos()
+    #     self.rubberBand.setGeometry(QRect(self.origin, QSize()))
+    #     self.rectChanged.emit(self.rubberBand.geometry())
+    #     self.rubberBand.show()
+    #     self.changeRubberBand = True
+    #     QGraphicsView.mousePressEvent(self, e)
+    
+    # def mouseMoveEvent(self, e):
+    #     if self.changeRubberBand:
+    #         self.rubberBand.setGeometry(QRect(self.origin, e.pos()).normalized())
+    #         self.rectChanged.emit(self.rubberBand.geometry())
+    #     QGraphicsView.mouseMoveEvent(self, e)
+    
+    # def mouseReleaseEvent(self, e):
+    #     self.changeRubberBand = False
+    #     #self.rubberBand.hide() #if you would like for the selected region to go away after release
+    #     QGraphicsView.mouseReleaseEvent(self, e)
+    
+    def enableDrawing(self):
+        print("We are talking")
+
+class MainWindow(QMainWindow):
+    def __init__(self, parent = None):
+        super(MainWindow, self).__init__(parent)
+        self.myApp = myApp2(self)
+        _widget = QWidget()
+        _layout = QVBoxLayout(_widget)
+        _layout.addWidget(self.myApp)
+        self.setCentralWidget(_widget)
+
+        #self.status = self.statusBar()
+        self.menuBar = self.createMenuBar()
+    
+    def newFile(self):
+        pass
+    
+    def openFile(self):
+        self.myApp.setImage()
+    
+    def saveFile(self):
+        pass
+    
+    def saveFileAs(self):
+        pass
+    
+    def close(self):
+        pass
+    
+    def undo(self):
+        pass
+    
+    def redo(self):
+        pass
+    
+    def clearSelected(self):
+        pass
+
+    def zoomIn(self):
+        pass
+    
+    def zoomOut(self):
+        pass
+    
+    def normalSize(self):
+        pass
+    
+    def fitToWindow(self):
+        pass
+    
+    def createFileActions(self):
+
+        ids = ["new", "open", "save", "saveas", "exit"]
+        #This is where you would add icons in a list
+        shortcuts = ['Ctrl+N', 'Ctrl+O', 'Ctrl+S', 'Ctrl+Shift+S', 'Ctrl+Q']
+        connects = [self.newFile, self.openFile, self.saveFile, self.saveFileAs, self.close]
+
+        l = []
+
+        for i in range(len(ids)):
+            a = QAction(ids[i], self)
+            a.setShortcut(shortcuts[i])
+            #a.triggered.connect(self.restoreFocus) ###### ask developer about this
+            a.setStatusTip(ids[i])
+            if connects[i] != 0: a.triggered.connect(connects[i])
+            l.append(a)
+        
+        l.insert(4, 0)
+
+        return(l)
+    
+    def createEditActions(self):
+        """
+        could add a select all of a certain color and have it also highlight those in
+        the file which holds all of the distances and angles for that group
+        also could add a preferences or settings section
+        """ 
+        ids = ["undo", "redo", "clear_selected"]
+		#icons = ["edit-undo.png", "edit-redo.png", "document-properties.png"]
+        shortcuts = ['Ctrl+Z', 'Ctrl+Y', 'Del']
+        connects = [self.undo, self.redo, self.clearSelected]
+
+        l = []
+
+        for i in range(len(ids)):
+            a = QAction(ids[i], self)
+            a.setShortcut(shortcuts[i])
+            #a.triggered.connect(self.restoreFocus)
+            a.setStatusTip(ids[i])
+            if connects[i] != 0: a.triggered.connect(connects[i])
+            l.append(a)
+        
+        l.insert(2,0)
+        l.insert(5,0)
+        l.insert(10,0)
+
+        return l
+    
+    def createViewActions(self):
+
+        ids = ["Zoom_In", "Zoom_Out", "Normal_Size", "Fit_to_Window"]
+        #This is where you would add icons in a list
+        shortcuts = ['Ctrl+Shift+=', 'Ctrl+Shift+-', 'Ctrl+N', 'Ctrl+Shift+N']
+        connects = [self.zoomIn, self.zoomOut, self.normalSize, self.fitToWindow]
+
+        l = []
+
+        for i in range(len(ids)):
+            a = QAction(ids[i], self)
+            a.setShortcut(shortcuts[i])
+            #a.triggered.connect(self.restoreFocus) ###### ask developer about this
+            a.setStatusTip(ids[i])
+            if connects[i] != 0: a.triggered.connect(connects[i])
+            l.append(a)
+        
+        l.insert(4, 0)
+
+        return(l)
+
+    def createMenuBar(self):
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu("File")
+        editMenu = menubar.addMenu("Edit")
+        viewMenu = menubar.addMenu("View")
+        fileActions = self.createFileActions()
+        editActions = self.createEditActions()
+        viewActions = self.createViewActions()
+        
+        for i in fileActions:
+            if i == 0: fileMenu.addSeparator()
+            else: fileMenu.addAction(i)
+        for i in editActions:
+            if i == 0: editMenu.addSeparator()
+            else: editMenu.addAction(i)
+        for i in viewActions:
+            if i == 0: viewMenu.addSeparator()
+            else: viewMenu.addAction(i)
+
+        return menubar
+
+class myApp2(QWidget):
+    def __init__(self, parent=None):
+        super(myApp2, self).__init__(parent)
+        self.setGeometry(200, 200, 800, 500)
+        self.setWindowTitle("selecting")
+        self.initUI()
+    
+    def initUI(self):
+        
+
+        hbox = QHBoxLayout()
+        self.view = GraphicsView()
+        self.scene = GraphicsScene()
+        self.pixmap = QPixmap()
+        self.pixmap = QPixmap("qds") #can take this out
+        self.pixmap = self.pixmap.scaled(500, 500, Qt.KeepAspectRatio) #can take this out
+        self.pixmapItem = QGraphicsPixmapItem()
+        self.pixmapItem.setPixmap(self.pixmap) #check if everytime you open a new image the old image is still an item
+        self.scene.addItem(self.pixmapItem)
+        self.view.setScene(self.scene)
+        self.viewer = photoViewer(self.view, self.scene, self.pixmapItem, 600, 600)
+
+        self.cvImage = cv2.imread('qds.tif')
+        self.cvogImage = cv2.imread('qds.tif')
+        self.cvogImageBW = cv2.imread('qds.tif', 0)
+        self.cvImageBW = cv2.imread('qds.tif', 0)
+
+        self.sl1 = QSlider(Qt.Horizontal)
+        self.sl1.setObjectName("dilate")
+        self.sl1.setMinimum(0)
+        self.sl1.setMaximum(10)
+        self.sl1.setValue(1)
+        self.sl1.setTickPosition(QSlider.TicksBelow)
+        self.sl1.setTickInterval(1)
+
+        self.sl2 = QSlider(Qt.Horizontal)
+        self.sl2.setObjectName('close')
+        self.sl2.setMinimum(0)
+        self.sl2.setMaximum(10)
+        self.sl2.setValue(0)
+        self.sl2.setTickPosition(QSlider.TicksBelow)
+        self.sl2.setTickInterval(1)
+
+        self.sl3 = QSlider(Qt.Horizontal)
+        self.sl3.setObjectName('tophat')
+        self.sl3.setMinimum(0)
+        self.sl3.setMaximum(10)
+        self.sl3.setValue(10)
+        self.sl3.setTickPosition(QSlider.TicksBelow)
+        self.sl3.setTickInterval(1)
+
+        self.rd = rdButton(self.view)
+        
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.rd)
+        vbox.addWidget(self.sl1)
+        vbox.addWidget(self.sl2)
+        vbox.addWidget(self.sl3)
+
+        hbox.addWidget(self.view)
+
+
+        frame = QFrame()
+        frame.setLayout(vbox)
+        hbox.addWidget(frame)
+        self.setLayout(hbox)
+
+        self.sl1.valueChanged.connect(self.valuechange)
+        self.sl2.valueChanged.connect(self.valuechange)
+        self.sl3.valueChanged.connect(self.valuechange)
+
+    
+    def setImage(self):
+        fileName, _  = QFileDialog.getOpenFileName(None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp)")
+        if fileName:
+            self.image = QPixmap(fileName) ###### self.image holds the original image at all times
+            self.pixmap = self.viewer.setDefaultImage(self.image)
+    
+    def editIm(self, editim, cur_mode, value):
+        im = editim
+        str_mode = 'ellipse'
+        # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
+        str_name = 'MORPH_' + str_mode.upper()
+        oper_name = 'MORPH_' + cur_mode.upper()
+        st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
+        #im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=value)
+        editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = value) #actually change full size image
+        return(editim)
+    
+    def valuechange(self):
+        sender = self.sender()
+        self.cvImage = self.editIm(self.cvogImage, sender.objectName(), sender.value())
+
+        image = QImage(self.cvImage, self.cvImage.shape[1], self.cvImage.shape[0],
+                        self.cvImage.shape[1] * 3, QImage.Format_RGB888)
+        self.pixmap = QPixmap(image)
+        self.pixmap = self.pixmap.scaled(500, 500, Qt.KeepAspectRatio)
+
+        self.updatePixmap(self.pixmap)
+    
+    def updatePixmap(self, pixmap):
+        self.pixmapItem.setPixmap(pixmap)
 
 if __name__ == "__main__":
-    image = cv2.imread("qds.tif", 0)
-    image = image[0:500, 0:500]
-    editim = image
-    sizeset = dict() #a dictionary of size of image and the settings for that size area
+    # image = cv2.imread("qds.tif", 0)
+    # image = image[0:500, 0:500]
+    # editim = image
+    # sizeset = dict() #a dictionary of size of image and the settings for that size area
     
     # editim, sizeset = edit(editim, sizeset)
     # editim, centres2 = COM(editim)
-    # editim = justCOM(editi(editim, centres2)
+    # editim = justCOM(editim, centres2)
     # image = reciprocal(editim)
 
     # editim = image
@@ -558,10 +835,26 @@ if __name__ == "__main__":
     # cv2.resizeWindow('final', 700, 700)
     # cv2.imshow('final', image)
 
-    cv2.waitKey(0) & 0xFF
-    cv2.destroyAllWindows()
+    # k = cv2.waitKey(0) & 0xFF
+    # if k == 27:
+    #     cv2.destroyAllWindows()
+    # if k == ord("s"):
+    #     cv2.imwrite("fft.png", image)
+    #     cv2.destroyAllWindows()
+    # image = cv2.imread("fft.png", 0)
+    # colorIm = cv2.imread("fft.png")
+    # editim = image
+    # editim, centres = COM(image)
+    # for i, j in centres:
+    #     colorIm = drawPoints(colorIm, (i, j))
+    # cv2.namedWindow('final', cv2.WINDOW_NORMAL)
+    # cv2.resizeWindow('final', 700, 700)
+    # cv2.imshow('final', colorIm)
+    # cv2.waitKey(0) & 0xFF
+    # cv2.destroyAllWindows()
+
 
     app = QApplication(sys.argv)
-    w = myApp()
+    w = MainWindow()
     w.show()
     sys.exit(app.exec())

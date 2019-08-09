@@ -601,8 +601,11 @@ class GraphicsView(QGraphicsView):
                 self._path.moveTo(self.mapToScene(event.pos()))
                 self._path_item.setPath(self._path)
             super(GraphicsView, self).mousePressEvent(event)
+        elif self.button == 1:
+            pass
+            #TODO - make zoom and pan radiobuttons work
 
-        elif self.button == 2:
+        elif self.button == 3:
             if self.hasPhoto():
                 self.origin = event.pos()
                 self.rubberBand.setGeometry(QRect(self.origin, QSize()))
@@ -624,7 +627,7 @@ class GraphicsView(QGraphicsView):
                 self._path_item.setPath(self._path)
             super(GraphicsView, self).mousePressEvent(event)
         
-        elif self.button == 1:
+        elif self.button == 3:
             if self.changeRubberBand:
                 self.rubberBand.setGeometry(QRect(self.origin, event.pos()).normalized())
                 self.rectChanged.emit(self.rubberBand.geometry())
@@ -650,7 +653,7 @@ class GraphicsView(QGraphicsView):
                 self._path_item = None
             super(GraphicsView, self).mouseReleaseEvent(event)
         
-        elif self.button == 1:
+        elif self.button == 3:
             rubberRect = self.rubberBand.geometry()
             viewRect = self.viewport().rect()
             sceneRect = QRectF(self.pixmapItem.pixmap().rect())
@@ -824,8 +827,10 @@ class editWindow(QWidget):
         self.pixmapItem = QGraphicsPixmapItem() #check if everytime you open a new image the old image is still an item
         self.pixmapItem.setPixmap(self.pixmap)
         self.view.scene().addItem(self.pixmapItem)
-
+        #TODO -- add the image editing aspect to each slider
         self.sl1 = QSlider(Qt.Horizontal)
+        self.lbl1 = QLabel()
+        self.lbl1.setText("erode/dilate")
         self.sl1.setObjectName("dilate")
         self.sl1.setMinimum(0)
         self.sl1.setMaximum(10)
@@ -834,6 +839,8 @@ class editWindow(QWidget):
         self.sl1.setTickInterval(1)
 
         self.sl2 = QSlider(Qt.Horizontal)
+        self.lbl2 = QLabel()
+        self.lbl2.setText("open/close")
         self.sl2.setObjectName('close')
         self.sl2.setMinimum(0)
         self.sl2.setMaximum(10)
@@ -842,6 +849,8 @@ class editWindow(QWidget):
         self.sl2.setTickInterval(1)
 
         self.sl3 = QSlider(Qt.Horizontal)
+        self.lbl3 = QLabel()
+        self.lbl3.setText("blackhat/tophat")
         self.sl3.setObjectName('tophat')
         self.sl3.setMinimum(0)
         self.sl3.setMaximum(10)
@@ -851,17 +860,23 @@ class editWindow(QWidget):
 
         self.sl4 = QSlider(Qt.Horizontal)
         self.sl4.setObjectName("Blur")
+        self.lbl4 = QLabel()
+        self.lbl4.setText("Blur")
         self.sl4.setMinimum(0)
         self.sl4.setMaximum(10)
         self.sl4.setValue(3)
         self.sl4.setTickPosition(QSlider.TicksBelow)
         self.sl4.setTickInterval(1)
-
+        #TODO -- add functionality for what happens when you cancel or accept
         buttons = QButtonGroup()
         self.cancel = QPushButton()
         self.cancel.setText("Cancel")
+        self.cancel.setCheckable(True)
+        self.cancel.toggle()
         self.accept = QPushButton()
         self.accept = QPushButton("Accept")
+        self.accept.setCheckable(True)
+        self.accept.toggle()
         buttons.addButton(self.cancel)
         buttons.addButton(self.accept)
 
@@ -872,9 +887,13 @@ class editWindow(QWidget):
         hbox2.addWidget(self.accept)
 
         vbox = QVBoxLayout()
+        vbox.addWidget(self.lbl1)
         vbox.addWidget(self.sl1)
+        vbox.addWidget(self.lbl2)
         vbox.addWidget(self.sl2)
+        vbox.addWidget(self.lbl3)
         vbox.addWidget(self.sl3)
+        vbox.addWidget(self.lbl4)
         vbox.addWidget(self.sl4)
 
         frame1 = QFrame() #frame around right side layout
@@ -892,17 +911,30 @@ class editWindow(QWidget):
         self.sl1.valueChanged.connect(self.valuechange)
         self.sl2.valueChanged.connect(self.valuechange)
         self.sl3.valueChanged.connect(self.valuechange) ######### you're copying and pasting -- we can overwrite the slider class and make a value change/edit area
-    
+        self.sl4.valueChanged.connect(self.valuechange)
+        
+        self.cancel.clicked.connect(self.close)
+        self.accept.clicked.connect(self.acceptButton)
+
+    def acceptButton(self):
+        pass
+        #TODO have a new window pop up which shows the reciprocal space image
+
     def editIm(self, editim, cur_mode, value):
         im = editim
-        str_mode = 'ellipse'
-        # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
-        str_name = 'MORPH_' + str_mode.upper()
-        oper_name = 'MORPH_' + cur_mode.upper()
-        st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
-        #im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=value)
-        editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = value) #actually change full size image
-        return(editim)
+        
+        if cur_mode.upper() in ["DILATE", "CLOSE", "TOPHAT"]:
+
+            str_mode = 'ellipse'
+            # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
+            str_name = 'MORPH_' + str_mode.upper()
+            oper_name = 'MORPH_' + cur_mode.upper()
+            st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
+            #im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=value)
+            editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = value) #actually change full size image
+            return(editim)
+        elif cur_mode.upper() == "BLUR":
+            pass #TODO add the functionality of  BLUR
     
     def valuechange(self):
         sender = self.sender()
@@ -931,7 +963,7 @@ class myApp2(QWidget):
         self.initUI()
     
     def initUI(self):
-        
+        #TODO - fix formatting of the window so that the sliders don't take up as much space as the images
 
         hbox = QHBoxLayout()
         

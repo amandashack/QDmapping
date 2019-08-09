@@ -518,19 +518,19 @@ class rdButton(QGroupBox):
     #Print out the ID & text of the checked radio button
     def radio_button_clicked(self):
         if self._button_group.checkedId() == 0:
-            print(self._button_group.checkedButton().text())
+            
             QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
 
         if self._button_group.checkedId() == 1:
-            print(self._button_group.checkedButton().text())
+            
             QApplication.setOverrideCursor(QCursor(Qt.CrossCursor))
 
         if self._button_group.checkedId() == 2:
-            print(self._button_group.checkedButton().text())
+            
             QApplication.setOverrideCursor(QCursor(Qt.OpenHandCursor))
 
         if self._button_group.checkedId() == 3:
-            print(self._button_group.checkedButton().text())
+            
             QApplication.setOverrideCursor(QCursor(Qt.PointingHandCursor))
 
 
@@ -564,7 +564,8 @@ class GraphicsView(QGraphicsView):
 
     def whichButton(self):
         self.button = self.parent.connectRB()
-
+        
+        
     def hasPhoto(self):
         return not self._empty
         
@@ -601,7 +602,7 @@ class GraphicsView(QGraphicsView):
                 self._path_item.setPath(self._path)
             super(GraphicsView, self).mousePressEvent(event)
 
-        elif self.button == 1:
+        elif self.button == 2:
             if self.hasPhoto():
                 self.origin = event.pos()
                 self.rubberBand.setGeometry(QRect(self.origin, QSize()))
@@ -933,9 +934,13 @@ class myApp2(QWidget):
         
 
         hbox = QHBoxLayout()
+        
         self.view = GraphicsView(self)
         self.drawView = QGraphicsView(self)
-
+        
+        self.lbl1 = QLabel()
+        self.lbl1.setText("erode/dilate")
+        self.lbl1.setAlignment(Qt.AlignCenter)
         self.sl1 = QSlider(Qt.Horizontal)
         self.sl1.setObjectName("dilate")
         self.sl1.setMinimum(0)
@@ -944,6 +949,9 @@ class myApp2(QWidget):
         self.sl1.setTickPosition(QSlider.TicksBelow)
         self.sl1.setTickInterval(1)
 
+        self.lbl2 = QLabel()
+        self.lbl2.setText("open/close")
+        self.lbl2.setAlignment(Qt.AlignCenter)
         self.sl2 = QSlider(Qt.Horizontal)
         self.sl2.setObjectName('close')
         self.sl2.setMinimum(0)
@@ -952,6 +960,9 @@ class myApp2(QWidget):
         self.sl2.setTickPosition(QSlider.TicksBelow)
         self.sl2.setTickInterval(1)
 
+        self.lbl3 = QLabel()
+        self.lbl3.setText("blackhat/tophat")
+        self.lbl3.setAlignment(Qt.AlignCenter)
         self.sl3 = QSlider(Qt.Horizontal)
         self.sl3.setObjectName('tophat')
         self.sl3.setMinimum(0)
@@ -964,13 +975,17 @@ class myApp2(QWidget):
         
         vbox = QVBoxLayout()
         vbox.addWidget(self.rd)
+        vbox.addWidget(self.lbl1)
         vbox.addWidget(self.sl1)
+        vbox.addWidget(self.lbl2)
         vbox.addWidget(self.sl2)
+        vbox.addWidget(self.lbl3)
         vbox.addWidget(self.sl3)
         vbox.addStretch(1)
 
         hbox.addWidget(self.view)
         hbox.addWidget(self.drawView)
+
 
 
         frame = QFrame()

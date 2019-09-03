@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from main import *
 from GraphicsView import *
+from collections import defaultdict
 import sys
 import time
 import cv2
@@ -66,30 +67,56 @@ class photoManager():
     def __init__(self):
         pass
 
-    def editIm(self, editim, cur_mode, value):
-
+    def editIm(self, editim, opDict, cur_mode, value):
+         
         im = editim
-        
-        if cur_mode.upper() in ["DILATE", "CLOSE", "TOPHAT"]:
 
+        for key in opDict.keys():
+            if key.upper() in ["DILATE", "CLOSE", "TOPHAT"] and opDict[key]:
+                print(1)
+                key_value = opDict[key][-1]
+
+                str_mode = 'ellipse'
+                str_name = f'MORPH_{str_mode.upper()}'
+                oper_name = f'MORPH_{key.upper()}'
+
+                st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
+                editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = key_value)
+
+            elif key.upper() == "BLUR" and opDict[key]:
+                print(2)
+                key_value = opDict[key][-1]
+                editim = cv2.GaussianBlur(editim, (3, 3), key_value)
+
+            elif key.upper() == "THRESHOLD" and opDict[key]:
+                print(3)
+                key_value = opDict[key][-1]
+                editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, key_value - 7)
+
+
+        if cur_mode.upper() in ["DILATE", "CLOSE", "TOPHAT"]:
+            
+            opDict[key].append(value)
             str_mode = 'ellipse'
             # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
             str_name = 'MORPH_' + str_mode.upper()
             oper_name = 'MORPH_' + cur_mode.upper()
+
             st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
-            #im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=value)
-            editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = value) #actually change full size image
-            
+            editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = value)
+
 
         elif cur_mode.upper() == "BLUR":
-
-            editim = cv2.GaussianBlur(im, (3, 3), value)
+            
+            opDict[key].append(value)
+            editim = cv2.GaussianBlur(editim, (3, 3), value)
 
             
         elif cur_mode.upper() == "THRESHOLD":
-            print("I am here")
-            editim = cv2.adaptiveThreshold(im, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, value-7)
-            
+            opDict[key].append(value) 
+            editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, value)
+        
+
         return(editim)
 
     def zoomByRect(self, editim, areaView): #QRect - x, y, width, height

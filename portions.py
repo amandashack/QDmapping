@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import math
 import cv2
+from collections import defaultdict
 
 from GraphicsView import *
 
@@ -734,7 +735,7 @@ class GraphicsView(QGraphicsView, photoManager):
     def editWindowtoRecip(self, rubberRect):
         editim = self.pixmapItem.pixmap().copy(rubberRect)
         scale = [self.imageScaled.width(), self.imageScaled.height()]
-        self.w = editWindow(editim, self.cvogImageBW, rubberRect, scale)
+        self.w = editWindow(editim, self.cvImageBW, rubberRect, scale)
         self.w.setGeometry(500, 500, 300, 300)
         self.w.show()
 
@@ -881,12 +882,12 @@ class MainWindow(QMainWindow):
 
 class editWindow(QWidget, photoManager):
 
-    def __init__(self, pixmap, cvogImage, rect, scale, parent=None):
+    def __init__(self, pixmap, editImage, rect, scale, parent=None):
         super(editWindow, self).__init__(parent)
         self.setWindowTitle("Reciprical space edit")
         self.pixmap = pixmap # NTS - the cropped selected region
-        self.cvogImage = cvogImage # NTS - the full original image in cv2 format
-        self.cvImage = cvogImage
+        self.ogImageEdit = editImage # NTS - the full original image in cv2 format
+        self.ImageEdit = editImage
         self.scale = scale
         self.rect = rect
         self.initUI()
@@ -898,6 +899,9 @@ class editWindow(QWidget, photoManager):
         self.pixmapItem.setPixmap(self.pixmap)
         self.view.scene().addItem(self.pixmapItem)
         #TODO -- add the image editing aspect to each slider
+
+        self.opDict = defaultdict(list)
+
         self.sl1 = QSlider(Qt.Horizontal)
         self.lbl1 = QLabel()
         self.lbl1.setText("erode/dilate")
@@ -1000,20 +1004,16 @@ class editWindow(QWidget, photoManager):
         self.accept.clicked.connect(self.acceptButton)
 
     def acceptButton(self):
-        image = self.cvogImage
-        image = image[0:500, 0:500] #TODO - change this to the selected region
-        editim = self.cvImage
+        
+        editim = self.ImageEdit
         sizeset = dict() #a dictionary of size of image and the settings for that size area
         
         editim, centres2 = COM(editim)
-        editim = justCOM(editim, centres2)
-        image = reciprocal(editim)
+        #editim = justCOM(editim, centres2)
+        #image = reciprocal(editim)
 
-        editim = image
-        sizeset = dict()
-        editim, sizeset = edit(editim, sizeset)
-        editim, centres = COM(editim)
-        editim = justCOM(editim, centres)
+        #editim, centres = COM(editim)
+        #editim = justCOM(editim, centres)
         image = editim
         cv2.namedWindow('final', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('final', 700, 700)
@@ -1025,31 +1025,37 @@ class editWindow(QWidget, photoManager):
         if k == ord("s"):
             cv2.imwrite("fft.png", image)
             cv2.destroyAllWindows()
-        image = cv2.imread("fft.png", 0)
-        colorIm = cv2.imread("fft.png")
-        editim = image
-        editim, centres = COM(image)
-        for i, j in centres:
-            colorIm = drawPoints(colorIm, (i, j))
-        cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('final', 700, 700)
-        cv2.imshow('final', colorIm)
-        cv2.waitKey(0) & 0xFF
-        cv2.destroyAllWindows()
+        #image = cv2.imread("fft.png", 0)
+        #colorIm = cv2.imread("fft.png")
+        #editim = image
+        #editim, centres = COM(image)
+        #for i, j in centres:
+        #    colorIm = drawPoints(colorIm, (i, j))
+        #cv2.namedWindow('final', cv2.WINDOW_NORMAL)
+        #cv2.resizeWindow('final', 700, 700)
+        #cv2.imshow('final', colorIm)
+        #cv2.waitKey(0) & 0xFF
+        #cv2.destroyAllWindows()
 
    
         #TODO have a new window pop up which shows the reciprocal space image
 
     def valuechange(self):
 
+        
         sender = self.sender()
-        print(self.rect)
-        # TODO - fix the thresholding as well as the image each time a slider is moved - maybe you need to apply the values of each slider to cvogImage each time one slider is moved? ask if there is a better way to do this.
-        self.cvImage = self.editIm(self.cvogImage, sender.objectName(), sender.value())
-        image = QImage(self.cvImage, self.cvImage.shape[1], self.cvImage.shape[0],
-                        self.cvImage.shape[1] * 3, QImage.Format_RGB888)
-        self.pixmap = QPixmap(image)
 
+        if sender.objectName() in self.opDict:
+            pass
+        else:
+            self.opDict[sender.objectName()] = []
+
+        # TODO - fix the thresholding as well as the image each time a slider is moved - maybe you need to apply the values of each slider to cvogImage each time one slider is moved? ask if there is a better way to do this.
+        self.ImageEdit = self.editIm(self.ogImageEdit, self.opDict, sender.objectName(), sender.value())
+         
+        image = QImage(self.ImageEdit, self.ImageEdit.shape[1], self.ImageEdit.shape[0], QImage.Format_Grayscale8)
+                        #self.imageEdit.shape[1] * 3, QImage.Format_Grayscale16)
+        self.pixmap = QPixmap(image)
         width = self.scale[0]
         height = self.scale[1]
         self.pixmap = self.pixmap.scaled(width, height, Qt.KeepAspectRatio)

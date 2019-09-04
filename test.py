@@ -3,6 +3,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import sys
 import math
+from GraphicsView import *
 
 class Example(QWidget):
     def __init__(self):
@@ -518,8 +519,8 @@ class Scene4(QGraphicsScene):
     def __init__(self):
         super().__init__()
         self.initScene()
-    def initScene(self):
-        self.image = 
+    #def initScene(self):
+    #    self.image =
 
 class pixmapItem(QGraphicsPixmapItem):
     def __init__(self):
@@ -530,7 +531,7 @@ class pixmapItem(QGraphicsPixmapItem):
         self.pixmap = QPixmap(self.image)
         self.initItem()
 
-    def initItem(self):
+    #def initItem(self):
         
 
 class attempt(QWidget):
@@ -546,6 +547,468 @@ class attempt(QWidget):
         hbox.addWidget(self.view)
 
         self.setGeometry(250, 150, 300, 300)
+   
+
+class rdButton(QGroupBox):
+
+    buttonChanged = pyqtSignal(str)
+
+    def __init__(self, view):
+        super(rdButton, self).__init__()
+        self.view = view
+
+
+        rdButtons = [QRadioButton("Draw"), QRadioButton("Zoom"), QRadioButton("Pan"), QRadioButton("Reciprocal")]
+
+        rdButtons[0].setChecked(True)   
+ 
+        button_layout = QVBoxLayout()
+
+        self._button_group = QButtonGroup()
+
+        for i in range(len(rdButtons)):
+            radB = rdButtons[i]
+            button_layout.addWidget(radB)
+            self._button_group.addButton(radB, i)
+            radB.clicked.connect(self.radio_button_clicked)
+
+        self.setLayout(button_layout)
+
+    def radio_button_clicked(self):
+        if self._button_group.checkedId() == 0:
+            
+            QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
+
+        if self._button_group.checkedId() == 1:
+            
+            QApplication.setOverrideCursor(QCursor(Qt.CrossCursor))
+
+        if self._button_group.checkedId() == 2:
+            
+            QApplication.setOverrideCursor(QCursor(Qt.OpenHandCursor))
+
+        if self._button_group.checkedId() == 3:
+            
+            QApplication.setOverrideCursor(QCursor(Qt.PointingHandCursor))
+
+
+class GraphicsScene(QGraphicsScene):
+    def __init__(self, *args, **kwargs):
+        QGraphicsScene.__init__(self, *args, **kwargs)
+
+class GraphicsView(QGraphicsView, photoManager):
+    rectChanged = pyqtSignal(QRect)
+
+    def __init__(self, dView, parent = None):
+        super(GraphicsView, self).__init__(parent)
+        self.parent = parent
+        self.dView = dView
+        self.button = 0
+        self.setGeometry(300, 300, 250, 150)
+        self.setScene(GraphicsScene(self))
+        self.dView.setScene(GraphicsScene(self))
+        self.pixmapItem = QGraphicsPixmapItem()
+        self.dpixmapItem = QGraphicsPixmapItem()
+        self.scene().addItem(self.pixmapItem)
+        self.dView.scene().addItem(self.dpixmapItem)
+        self._empty = True
+        self._path_item = None
+
+        self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
+        self.setMouseTracking(True)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.dView.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.dView.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
+        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.origin = QPoint()
+        self.changeRubberBand = False
+        self.initial_path()
+
+    def whichButton(self):
+        self.button = self.parent.connectRB()
+        
+        
+    def hasPhoto(self):
+        return not self._empty
+        
+    def initial_path(self):
+        self._path = QtGui.QPainterPath()
+        pen = QtGui.QPen(QtGui.QColor("green"), 4, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap)
+        self._path_item = self.dView.scene().addPath(self._path, pen)
+
+    def setImage(self):
+        filename, _ = QFileDialog.getOpenFileName(
+            None, "select Image", "", "Image Files (*.png *.jpg *jpg *.bmp *.tif)"
+        )
+        if filename:
+            if self._empty == True:
+
+                self._empty = False
+                self.image = QPixmap(filename)
+                width = self.image.width() * 0.7
+                height = self.image.height() * 0.7
+                self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
+                self.dimage = QImage(self.imageScaled.width(), self.imageScaled.height(), QImage.Format_ARGB32)
+                self.dpixmap = QPixmap(self.dimage)
+                self.pixmapItem.setPixmap(self.imageScaled)#QtGui.QPixmap(filename))
+                self.dpixmapItem.setPixmap(self.dpixmap)
+
+                self.cvImage = cv2.imread(filename)
+                self.cvogImage = cv2.imread(filename)
+                self.cvogImageBW = cv2.imread(filename, 0)
+                self.cvImageBW = cv2.imread(filename, 0)
+            
+            elif self._empty == False:
+                
+                self.scene().clear()
+                self.image = QPixmap(filename) #this should not change unless a new image is selected
+                width = self.image.width() * 0.3
+                height = self.image.height() * 0.3
+                self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
+                self.pixmapItem = QGraphicsPixmapItem()
+                self.scene().addItem(self.pixmapItem)
+                self.pixmapItem.setPixmap(self.imageScaled)#QtGui.QPixmap(filename))
+
+                self.cvImage = cv2.imread(filename)
+                self.cvogImage = cv2.imread(filename)
+                self.cvogImageBW = cv2.imread(filename, 0)
+                self.cvImageBW = cv2.imread(filename, 0)
+
+    def mousePressEvent(self, event):
+
+        self.whichButton()
+
+        if self.button == 0:
+
+            self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+
+            start = event.pos()
+            if (
+                not self.pixmapItem.pixmap().isNull()
+                and event.buttons() & Qt.LeftButton
+            ):
+                self.initial_path()
+                self._path.moveTo(self.mapToScene(event.pos()))
+                self._path_item.setPath(self._path)
+            super(GraphicsView, self).mousePressEvent(event)
+
+        elif self.button == 1:
+
+            self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+
+            if self.hasPhoto():
+                self.origin = event.pos()
+                self.rubberBand.setGeometry(QRect(self.origin, QSize()))
+                self.rectChanged.emit(self.rubberBand.geometry())
+                self.rubberBand.show()
+                self.changeRubberBand = True
+            QGraphicsView.mousePressEvent(self, event)
+           
+            #TODO - make zoom and pan radiobuttons work
+        elif self.button == 2:
+
+            self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
+
+        elif self.button == 3:
+
+            self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+            if self.hasPhoto():
+                self.origin = event.pos()
+                self.rubberBand.setGeometry(QRect(self.origin, QSize()))
+                self.rectChanged.emit(self.rubberBand.geometry())
+                self.rubberBand.show()
+                self.changeRubberBand = True
+            QGraphicsView.mousePressEvent(self, event)
+
+    def mouseMoveEvent(self, event):
+
+        if self.button == 0:
+
+            if (
+                not self.pixmapItem.pixmap().isNull()
+                and event.buttons() & Qt.LeftButton
+                and self._path_item is not None
+            ):
+                self._path.lineTo(self.mapToScene(event.pos()))
+                self._path_item.setPath(self._path)
+            super(GraphicsView, self).mousePressEvent(event)
+        
+        elif self.button == 1:
+            if self.changeRubberBand:
+                self.rubberBand.setGeometry(QRect(self.origin, event.pos()).normalized())
+                self.rectChanged.emit(self.rubberBand.geometry())
+            QGraphicsView.mouseMoveEvent(self, event)
+
+        elif self.button == 3:
+            if self.changeRubberBand:
+                self.rubberBand.setGeometry(QRect(self.origin, event.pos()).normalized())
+                self.rectChanged.emit(self.rubberBand.geometry())
+            QGraphicsView.mouseMoveEvent(self, event)
+        
+        
+
+    def mouseReleaseEvent(self, event):
+        end = event.pos()
+
+        if self.button == 0:
+            if (
+                not self.pixmapItem.pixmap().isNull()
+                and self._path_item is not None
+            ):
+                self._path.lineTo(self.mapToScene(end))
+                self._path.closeSubpath()
+                self._path_item.setPath(self._path)
+                self._path_item.setBrush(QBrush(QColor("red")))
+                self._path_item.setFlag(
+                    QGraphicsItem.ItemIsSelectable, True
+                )
+                self._path_item = None
+            super(GraphicsView, self).mouseReleaseEvent(event)
+        elif self.button == 1:
+            rubberRect = self.rubberBand.geometry()
+            viewRect = self.viewport().rect()
+            sceneRect = self.mapToScene(rubberRect).boundingRect()#QRectF(self.pixmapItem.pixmap().rect())
+            
+            self.changeRubberBand = False
+            self.rubberBand.hide() #if you would like for the selected region to go away after release
+
+            width = self.imageScaled.width() / rubberRect.height()
+            height = self.imageScaled.height() / rubberRect.height()
+            
+            self.imageScaled = self.image.scaled(width * self.imageScaled.width(), height * self.imageScaled.height(), QtCore.Qt.KeepAspectRatio)
+          
+            #center = [sceneRect.y() + (sceneRect.height() / 2), sceneRect.x() + (sceneRect.width() / 2)]
+            #TODO - make it so the viewport is centered on the center of the selection region 
+            #self.centerOn(center[1], center[0])
+            self.pixmapItem.setPixmap(self.imageScaled)
+            
+            QGraphicsView.mouseReleaseEvent(self, event)
+
+        
+        elif self.button == 3:
+            rubberRect = self.rubberBand.geometry()
+            viewRect = self.viewport().rect()
+            sceneRect = QRectF(self.pixmapItem.pixmap().rect())
+            
+            self.changeRubberBand = False
+            self.rubberBand.hide() #if you would like for the selected region to go away after release
+
+            self.editWindowtoRecip(rubberRect)
+            QGraphicsView.mouseReleaseEvent(self, event)
+        
+    def editWindowtoRecip(self, rubberRect):
+        editim = self.pixmapItem.pixmap().copy(rubberRect)
+        scale = [self.imageScaled.width(), self.imageScaled.height()]
+        self.w = editWindow(editim, self.cvImageBW, rubberRect, scale)
+        self.w.setGeometry(500, 500, 300, 300)
+        self.w.show()
+
+
+
+
+
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, parent = None):
+        super(MainWindow, self).__init__(parent)
+        self.myApp = myApp2(self)
+        _widget = QWidget()
+        _layout = QVBoxLayout(_widget)
+        _layout.addWidget(self.myApp)
+        self.setCentralWidget(_widget)
+        self.setGeometry(200, 200, 1000, 600)
+
+        #self.status = self.statusBar()
+        self.menuBar = self.createMenuBar()
+    
+    def newFile(self):
+        pass
+    
+    def openFile(self):
+        self.myApp.setImage()
+    
+    def saveFile(self):
+        pass
+    
+    def saveFileAs(self):
+        pass
+    
+    def close(self):
+        pass
+    
+    def undo(self):
+        pass
+    
+    def redo(self):
+        pass
+    
+    def clearSelected(self):
+        pass
+
+    def zoomIn(self):
+        pass
+    
+    def zoomOut(self):
+        pass
+    
+    def normalSize(self):
+        pass
+    
+    def fitToWindow(self):
+        pass
+    
+    def createFileActions(self):
+
+        ids = ["new", "open", "save", "saveas", "exit"]
+        #This is where you would add icons in a list
+        shortcuts = ['Ctrl+N', 'Ctrl+O', 'Ctrl+S', 'Ctrl+Shift+S', 'Ctrl+Q']
+        connects = [self.newFile, self.openFile, self.saveFile, self.saveFileAs, self.close]
+
+        l = []
+
+        for i in range(len(ids)):
+            a = QAction(ids[i], self)
+            a.setShortcut(shortcuts[i])
+            #a.triggered.connect(self.restoreFocus) ###### ask developer about this
+            a.setStatusTip(ids[i])
+            if connects[i] != 0: a.triggered.connect(connects[i])
+            l.append(a)
+        
+        l.insert(4, 0)
+
+        return(l)
+    
+    def createEditActions(self):
+        """
+        could add a select all of a certain color and have it also highlight those in
+        the file which holds all of the distances and angles for that group
+        also could add a preferences or settings section
+        """ 
+        ids = ["undo", "redo", "clear_selected"]
+		#icons = ["edit-undo.png", "edit-redo.png", "document-properties.png"]
+        shortcuts = ['Ctrl+Z', 'Ctrl+Y', 'Del']
+        connects = [self.undo, self.redo, self.clearSelected]
+
+        l = []
+
+        for i in range(len(ids)):
+            a = QAction(ids[i], self)
+            a.setShortcut(shortcuts[i])
+            #a.triggered.connect(self.restoreFocus)
+            a.setStatusTip(ids[i])
+            if connects[i] != 0: a.triggered.connect(connects[i])
+            l.append(a)
+        
+        l.insert(2,0)
+        l.insert(5,0)
+        l.insert(10,0)
+
+        return l
+    
+    def createViewActions(self):
+
+        ids = ["Zoom_In", "Zoom_Out", "Normal_Size", "Fit_to_Window"]
+        #This is where you would add icons in a list
+        shortcuts = ['Ctrl+Shift+=', 'Ctrl+Shift+-', 'Ctrl+N', 'Ctrl+Shift+N']
+        connects = [self.zoomIn, self.zoomOut, self.normalSize, self.fitToWindow]
+
+        l = []
+
+        for i in range(len(ids)):
+            a = QAction(ids[i], self)
+            a.setShortcut(shortcuts[i])
+            #a.triggered.connect(self.restoreFocus) ###### ask developer about this
+            a.setStatusTip(ids[i])
+            if connects[i] != 0: a.triggered.connect(connects[i])
+            l.append(a)
+        
+        l.insert(4, 0)
+
+        return(l)
+
+    def createMenuBar(self):
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu("File")
+        editMenu = menubar.addMenu("Edit")
+        viewMenu = menubar.addMenu("View")
+        fileActions = self.createFileActions()
+        editActions = self.createEditActions()
+        viewActions = self.createViewActions()
+        
+        for i in fileActions:
+            if i == 0: fileMenu.addSeparator()
+            else: fileMenu.addAction(i)
+        for i in editActions:
+            if i == 0: editMenu.addSeparator()
+            else: editMenu.addAction(i)
+        for i in viewActions:
+            if i == 0: viewMenu.addSeparator()
+            else: viewMenu.addAction(i)
+
+        return menubar
+
+
+
+
+
+
+
+class myApp2(QWidget, photoManager):
+    def __init__(self, parent=None):
+        super(myApp2, self).__init__(parent)
+        
+        self.setWindowTitle("selecting")
+        self.initUI()
+    
+    def initUI(self):
+
+        hbox = QHBoxLayout()
+        
+
+        self.drawView = QGraphicsView(self)
+        self.view = GraphicsView(self.drawView, self)
+        
+        self.rd = rdButton(self.view)
+        
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.rd)
+        
+        vbox.addStretch(1)
+
+        hbox.addWidget(self.view)
+        hbox.addWidget(self.drawView)
+
+
+
+        frame = QFrame()
+        frame.setLayout(vbox)
+        hbox.addWidget(frame)
+        self.setLayout(hbox)
+
+        
+    def connectRB(self):
+        return(self.rd._button_group.checkedId())
+
+    def setImage(self):
+        self.view.setImage()
+    
+    def valuechange(self):
+        sender = self.sender()
+        self.cvImage = self.editIm(self.view.cvogImage, sender.objectName(), sender.value())
+
+        image = QImage(self.cvImage, self.cvImage.shape[1], self.cvImage.shape[0],
+                        self.cvImage.shape[1] * 3, QImage.Format_RGB888)
+        self.pixmap = QPixmap(image)
+        self.pixmap = self.pixmap.scaled(self.view.imageScaled.width(), self.view.imageScaled.height(), Qt.KeepAspectRatio)
+
+        self.updatePixmap(self.pixmap)
+    
+    def updatePixmap(self, pixmap):
+        self.view.pixmapItem.setPixmap(pixmap)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -553,6 +1016,6 @@ if __name__ == "__main__":
     #w = ViewExample()
     #w = Example2()
     #w = myView()
-    w = Example4()
+    w = MainWindow()
     w.show()
     sys.exit(app.exec_())

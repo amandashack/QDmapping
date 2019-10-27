@@ -68,12 +68,20 @@ class photoManager():
         pass
 
     def editIm(self, editim, opDict, cur_mode, value):
-         
+        '''
+        the problem is that the image is edited to include the previous state of the image AND THEN the current position of the slider is taken into account
+        ~ this must be done beforehand so that the current state of the image is created from the slider + the previously moved sliders
+
+        I believe this has been fixed and the below commented out code can be removed - 10/16
+        '''
+
         im = editim
+        
+        opDict[cur_mode].append(value)
 
         for key in opDict.keys():
             if key.upper() in ["DILATE", "CLOSE", "TOPHAT"] and opDict[key]:
-                print(1)
+                
                 key_value = opDict[key][-1]
 
                 str_mode = 'ellipse'
@@ -84,15 +92,17 @@ class photoManager():
                 editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = key_value)
 
             elif key.upper() == "BLUR" and opDict[key]:
-                print(2)
+                
                 key_value = opDict[key][-1]
                 editim = cv2.GaussianBlur(editim, (3, 3), key_value)
 
             elif key.upper() == "THRESHOLD" and opDict[key]:
-                print(3)
+                
                 key_value = opDict[key][-1]
                 editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, key_value - 7)
-
+            
+            else: print('you have a wrong key on line 96 in graphicsview.py')
+        '''    
 
         if cur_mode.upper() in ["DILATE", "CLOSE", "TOPHAT"]:
             
@@ -115,7 +125,7 @@ class photoManager():
         elif cur_mode.upper() == "THRESHOLD":
             opDict[key].append(value) 
             editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, value)
-        
+        '''
 
         return(editim)
 

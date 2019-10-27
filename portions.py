@@ -11,6 +11,14 @@ from collections import defaultdict
 from GraphicsView import *
 
 
+'''
+10/20
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- added a confirmation window which will compare the original image to the justCOM image
+- need to crop the image before finding just COM and not try to do it for the entire image
+  because thats why I think it wasnt working, just cause the image is so large and the number of circles is huge.
+'''
+
 def nothing(x):
     pass
 
@@ -65,21 +73,22 @@ def COM(binary):
 	return(binary, centres)
 
 def justCOM(thresh, centres):
-	for i in range(thresh.shape[0]):
-		for j in range(thresh.shape[1]):
-			thresh.itemset((i, j), 0)
- 
+        thresh[::] = 0
+        #for i in range(thresh.shape[0]):
+        #	for j in range(thresh.shape[1]):
+	#		thresh.itemset((i, j), 0)
+
 	#print(thresh.shape)
-	for i in range(len(centres)):
-	#	#print(centres[i])	
-	#	com = np.zeros((thresh2.shape[0], thresh2.shape[1]), dtype=np.float32)
-		thresh.itemset((centres[i][1], centres[i][0]), 255)
-	cv2.namedWindow('just COM', cv2.WINDOW_NORMAL)
-	cv2.resizeWindow('just COM', 700, 700)
-	cv2.imshow('just COM', thresh)
-	cv2.waitKey(0) & 0xFF
-	cv2.destroyAllWindows()
-	return(thresh)
+        for i in range(len(centres)):
+            #print(centres[i])	
+            #com = np.zeros((thresh2.shape[0], thresh2.shape[1]), dtype=np.float32)
+            thresh.itemset((centres[i][1], centres[i][0]), 255)
+        #cv2.namedWindow('just COM', cv2.WINDOW_NORMAL)
+        #cv2.resizeWindow('just COM', 700, 700)
+        #cv2.imshow('just COM', thresh)
+        #cv2.waitKey(0) & 0xFF
+        #cv2.destroyAllWindows()
+        return(thresh)
 
 ###### this is where comass.py ends
 
@@ -583,7 +592,7 @@ class GraphicsView(QGraphicsView, photoManager):
             if self._empty == True:
 
                 self._empty = False
-                self.image = QPixmap(filename) #this should not change unless a new image is selected
+                self.image = QPixmap(filename) 
                 width = self.image.width() * 0.7
                 height = self.image.height() * 0.7
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
@@ -597,7 +606,7 @@ class GraphicsView(QGraphicsView, photoManager):
             elif self._empty == False:
                 
                 self.scene().clear()
-                self.image = QPixmap(filename) #this should not change unless a new image is selected
+                self.image = QPixmap(filename)
                 width = self.image.width() * 0.3
                 height = self.image.height() * 0.3
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
@@ -646,7 +655,7 @@ class GraphicsView(QGraphicsView, photoManager):
             self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
 
         elif self.button == 3:
-
+            
             self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
             if self.hasPhoto():
                 self.origin = event.pos()
@@ -660,8 +669,10 @@ class GraphicsView(QGraphicsView, photoManager):
 
         if self.button == 0:
 
+            self.p = self.pixmapItem.pixmap()
+            
             if (
-                not self.pixmapItem.pixmap().isNull()
+                not self.p.isNull()
                 and event.buttons() & Qt.LeftButton
                 and self._path_item is not None
             ):
@@ -703,6 +714,7 @@ class GraphicsView(QGraphicsView, photoManager):
         elif self.button == 1:
             rubberRect = self.rubberBand.geometry()
             viewRect = self.viewport().rect()
+
             sceneRect = self.mapToScene(rubberRect).boundingRect()#QRectF(self.pixmapItem.pixmap().rect())
             
             self.changeRubberBand = False
@@ -722,6 +734,7 @@ class GraphicsView(QGraphicsView, photoManager):
 
         
         elif self.button == 3:
+            
             rubberRect = self.rubberBand.geometry()
             viewRect = self.viewport().rect()
             sceneRect = QRectF(self.pixmapItem.pixmap().rect())
@@ -749,7 +762,7 @@ class MainWindow(QMainWindow):
         _layout = QVBoxLayout(_widget)
         _layout.addWidget(self.myApp)
         self.setCentralWidget(_widget)
-        self.setGeometry(200, 200, 1000, 600)
+        self.setGeometry(100, 100, 1300, 750)
 
         #self.status = self.statusBar()
         self.menuBar = self.createMenuBar()
@@ -880,6 +893,49 @@ class MainWindow(QMainWindow):
 
         return menubar
 
+class myPopup(QWidget):
+    def __init__(self, image, COM):
+        super(myPopup, self).__init__()
+
+        grid = QGridLayout()
+
+        self.image = image
+        self.COM = COM
+        self.view = QGraphicsView()
+        self.viewCOM = QGraphicsView()
+        self.scene = QGraphicsScene()
+        self.sceneCOM = QGraphicsScene()
+        self.scene.addPixmap(self.image)
+        self.sceneCOM.addPixmap(self.COM)
+        self.view.setScene(self.scene)
+        self.viewCOM.setScene(self.sceneCOM)
+
+        self.words = QLabel()
+        self.words.setText("If the centers of mass look correct, press accept. Otherwise, decline.")
+        self.words.setAlignment(Qt.AlignCenter)
+        
+        self.accept = QPushButton()
+        self.decline = QPushButton()
+        self.accept.setText("accept")
+        self.decline.setText("decline")
+
+        grid.addWidget(self.words)
+        grid.addWidget(self.viewCOM)
+        grid.addWidget(self.view)
+        grid.addWidget(self.accept)
+        grid.addWidget(self.decline)
+        self.setLayout(grid)
+
+        self.decline.pressed.connect(self.declinePressed)
+        self.accept.pressed.connect(self.acceptPressed)
+
+    def acceptPressed(self):
+        print('accept was pressed')
+
+
+    def declinePressed(self):
+        print('decline was pressed')
+
 class editWindow(QWidget, photoManager):
 
     def __init__(self, pixmap, editImage, rect, scale, parent=None):
@@ -887,9 +943,13 @@ class editWindow(QWidget, photoManager):
         self.setWindowTitle("Reciprical space edit")
         self.pixmap = pixmap # NTS - the cropped selected region
         self.ogImageEdit = editImage # NTS - the full original image in cv2 format
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~``
+        # maybe just crop the image here so that anything done doesnt require changing its shape
         self.ImageEdit = editImage
         self.scale = scale
         self.rect = rect
+        self.ImageEdit = cv2.resize(self.ImageEdit, (self.scale[0], self.scale[1]), cv2.INTER_CUBIC)
+        self.ImageEdit = self.ImageEdit[self.rect.x(): self.rect.x() + self.rect.width()-1, self.rect.y(): self.rect.y() + self.height()-1]
         self.initUI()
     
     def initUI(self):
@@ -947,11 +1007,10 @@ class editWindow(QWidget, photoManager):
         self.lbl5 = QLabel()
         self.lbl5.setText("Threshold")
         self.sl5.setMinimum(0)
-        self.sl5.setMaximum(5)
+        self.sl5.setMaximum(10)
         self.sl5.setTickPosition(QSlider.TicksBelow)
         self.sl5.setTickInterval(1)
 
-        #TODO -- add functionality for what happens when you cancel or accept
         buttons = QButtonGroup()
         self.cancel = QPushButton()
         self.cancel.setText("Cancel")
@@ -1004,12 +1063,25 @@ class editWindow(QWidget, photoManager):
         self.accept.clicked.connect(self.acceptButton)
 
     def acceptButton(self):
+
+        editim = self.ImageEdit
         
+        circles = cv2.HoughCircles(editim, cv2.HOUGH_GRADIENT, 1.2, 100)
+        circles = np.round(circles[0,:]).astype("int")
+        for (x, y, r) in circles:
+            cv2.circle(editim, (x, y), r, (0, 255, 0), 4)
+            
+        #editim = np.hstack(self.ImageEdit, editim)
+        self.w = myPopup(self.pixmap, QImage(editim, editim.shape[1], editim.shape[0], QImage.Format_Grayscale8))
+        self.w.setGeometry(200, 200, 200, 200)
+        self.w.show()
+        # TODO - fix the accept button and make it so that the distances and angles are found and printed in the terminal (eventually a database is created with this information)
+        '''
         editim = self.ImageEdit
         sizeset = dict() #a dictionary of size of image and the settings for that size area
         
         editim, centres2 = COM(editim)
-        #editim = justCOM(editim, centres2)
+        editim = justCOM(editim, centres2)
         #image = reciprocal(editim)
 
         #editim, centres = COM(editim)
@@ -1036,7 +1108,7 @@ class editWindow(QWidget, photoManager):
         #cv2.imshow('final', colorIm)
         #cv2.waitKey(0) & 0xFF
         #cv2.destroyAllWindows()
-
+        '''
    
         #TODO have a new window pop up which shows the reciprocal space image
 
@@ -1083,13 +1155,19 @@ class myApp2(QWidget, photoManager):
         self.initUI()
     
     def initUI(self):
-        #TODO - fix formatting of the window so that the sliders don't take up as much space as the images
+        # TODO - fix formatting of the window so that the sliders don't take up as much space as the images
 
-        hbox = QHBoxLayout()
-        
+        #hbox = QHBoxLayout()
+        grid = QGridLayout()
+        grid.setVerticalSpacing(20)
+        grid.setHorizontalSpacing(50)
         self.view = GraphicsView(self)
         self.drawView = QGraphicsView(self)
         
+
+        self.editDict = defaultdict(list)
+
+        # TODO - add a radiobutton to have a slider turned on and off
         self.lbl1 = QLabel()
         self.lbl1.setText("erode/dilate")
         self.lbl1.setAlignment(Qt.AlignCenter)
@@ -1125,25 +1203,21 @@ class myApp2(QWidget, photoManager):
 
         self.rd = rdButton(self.view)
         
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.rd)
-        vbox.addWidget(self.lbl1)
-        vbox.addWidget(self.sl1)
-        vbox.addWidget(self.lbl2)
-        vbox.addWidget(self.sl2)
-        vbox.addWidget(self.lbl3)
-        vbox.addWidget(self.sl3)
-        vbox.addStretch(1)
-
-        hbox.addWidget(self.view)
-        hbox.addWidget(self.drawView)
+        grid.addWidget(self.view, 0, 0, 10, 15)
+        grid.addWidget(self.drawView, 0, 14, 10, 15)
+        grid.addWidget(self.rd, 0, 29, 1, 2)
+        grid.addWidget(self.lbl1, 1, 29, 1, 2)
+        grid.addWidget(self.sl1, 2, 29, 1, 2)
+        grid.addWidget(self.lbl2, 3, 29, 1, 2)
+        grid.addWidget(self.sl2, 4, 29, 1, 2)
+        grid.addWidget(self.lbl3, 5, 29, 1, 2)
+        grid.addWidget(self.sl3, 6, 29, 1, 2)
 
 
-
-        frame = QFrame()
-        frame.setLayout(vbox)
-        hbox.addWidget(frame)
-        self.setLayout(hbox)
+        #frame = QFrame()
+        #frame.setLayout(vbox)
+        #hbox.addWidget(frame)
+        self.setLayout(grid)
 
         self.sl1.valueChanged.connect(self.valuechange)
         self.sl2.valueChanged.connect(self.valuechange)
@@ -1154,17 +1228,33 @@ class myApp2(QWidget, photoManager):
 
     def setImage(self):
         self.view.setImage()
-    
+  
+
     def valuechange(self):
+
+        
         sender = self.sender()
-        self.cvImage = self.editIm(self.view.cvogImage, sender.objectName(), sender.value())
 
-        image = QImage(self.cvImage, self.cvImage.shape[1], self.cvImage.shape[0],
-                        self.cvImage.shape[1] * 3, QImage.Format_RGB888)
-        self.pixmap = QPixmap(image)
-        self.pixmap = self.pixmap.scaled(self.view.imageScaled.width(), self.view.imageScaled.height(), Qt.KeepAspectRatio)
+        if sender.objectName() in self.editDict:
+            pass
+        else:
+            self.editDict[sender.objectName()] = []
 
-        self.updatePixmap(self.pixmap)
+        self.imageEdit = self.editIm(self.view.cvogImageBW, self.editDict, sender.objectName(), sender.value())
+         
+        self.imageEdit = QImage(self.imageEdit, self.imageEdit.shape[1], self.imageEdit.shape[0], QImage.Format_Grayscale8)
+        
+        self.pixmap = QPixmap(self.imageEdit)
+        
+        width = self.view.imageScaled.width()
+        height = self.view.imageScaled.height()
+        self.pixmap = self.pixmap.scaled(width, height, Qt.KeepAspectRatio)
+        
+        self.view.scene().clear()
+        self.pixmapItem = QGraphicsPixmapItem()
+        self.view.scene().addItem(self.pixmapItem)
+        self.pixmapItem.setPixmap(self.pixmap)
+  
     
     def updatePixmap(self, pixmap):
         self.view.pixmapItem.setPixmap(pixmap)

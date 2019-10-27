@@ -544,28 +544,74 @@ class rdButton(QGroupBox):
             QApplication.setOverrideCursor(QCursor(Qt.PointingHandCursor))
 
 
-class GraphicsScene(QGraphicsScene):
-    def __init__(self, *args, **kwargs):
-        QGraphicsScene.__init__(self, *args, **kwargs)
+class GraphicsScene2(QGraphicsScene):
+    def __init__(self, parent=None):
+        super(GraphicsScene2, self).__init__(parent)
+    
+    def retrieval(self, scene):
+        self.scene = scene
+
+    def addPath2(self, path, pen=None, brush=None):
+
+        pen = QtGui.QPen(QtGui.QColor("green"), 4, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap)
+        self.item = graphicsPathItem(self, self.scene)
+        self.item.setPen(pen)
+        self.item.setPath(path)
+        self.addItem(self.item)
+        return(self.item)
+            
+class graphicsPathItem(QGraphicsPathItem):
+    def __init__(self, dscene, scene, parent = None):
+        super(QGraphicsPathItem, self).__init__(parent)
+        self.dscene = dscene
+        self.scene = scene
+
+    def mouseDoubleClickEvent(self, e):
+        pen = QtGui.QPen(QtGui.QColor("black"), 2, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap)
+        self.scene.addPath(self.shape(), pen)
+    
+    def keyPressEvent(self, e):
+        
+        items = self.dscene.selectedItems()
+        key = e.key()
+        if key == QtCore.Qt.Key_Delete or key == QtCore.Qt.Key_Backspace: #the Delete button doesnt seem to work here, only the backspace. 
+
+            for item in items:
+
+                self.dscene.removeItem(item)
+                self.dscene.update()
+
 
 class GraphicsView(QGraphicsView, photoManager):
     rectChanged = pyqtSignal(QRect)
 
-    def __init__(self, parent = None):
+    def __init__(self, dView, parent = None):
         super(GraphicsView, self).__init__(parent)
         self.parent = parent
+        self.dView = dView
         self.button = 0
         self.setGeometry(300, 300, 250, 150)
-        self.setScene(GraphicsScene(self))
-        self.pixmapItem = QGraphicsPixmapItem() #check if everytime you open a new image the old image is still an item
+        
+        self.setScene(GraphicsScene2(self))
+        self.dView.setScene(GraphicsScene2(self))
+        self.dView.scene().retrieval(self.scene())
+        self.pixmapItem = QGraphicsPixmapItem()
+        self.dpixmapItem = QGraphicsPixmapItem()
         self.scene().addItem(self.pixmapItem)
+        self.dView.scene().addItem(self.dpixmapItem)
+        
+        
+
         self._empty = True
         self._path_item = None
 
         self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
         self.setMouseTracking(True)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.dView.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.dView.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+
         self.setTransformationAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.origin = QPoint()
@@ -582,7 +628,7 @@ class GraphicsView(QGraphicsView, photoManager):
     def initial_path(self):
         self._path = QtGui.QPainterPath()
         pen = QtGui.QPen(QtGui.QColor("green"), 4, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap)
-        self._path_item = self.scene().addPath(self._path, pen)
+        self._path_item = self.dView.scene().addPath2(self._path, pen)
 
     def setImage(self):
         filename, _ = QFileDialog.getOpenFileName(
@@ -592,11 +638,14 @@ class GraphicsView(QGraphicsView, photoManager):
             if self._empty == True:
 
                 self._empty = False
-                self.image = QPixmap(filename) 
+                self.image = QPixmap(filename)
                 width = self.image.width() * 0.7
                 height = self.image.height() * 0.7
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
+                self.dimage = QImage(self.imageScaled.width(), self.imageScaled.height(), QImage.Format_ARGB32)
+                self.dpixmap = QPixmap(self.dimage)
                 self.pixmapItem.setPixmap(self.imageScaled)#QtGui.QPixmap(filename))
+                self.dpixmapItem.setPixmap(self.dpixmap)
 
                 self.cvImage = cv2.imread(filename)
                 self.cvogImage = cv2.imread(filename)
@@ -606,7 +655,7 @@ class GraphicsView(QGraphicsView, photoManager):
             elif self._empty == False:
                 
                 self.scene().clear()
-                self.image = QPixmap(filename)
+                self.image = QPixmap(filename) #this should not change unless a new image is selected
                 width = self.image.width() * 0.3
                 height = self.image.height() * 0.3
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
@@ -622,6 +671,8 @@ class GraphicsView(QGraphicsView, photoManager):
     def mousePressEvent(self, event):
 
         self.whichButton()
+
+
 
         if self.button == 0:
 
@@ -655,7 +706,7 @@ class GraphicsView(QGraphicsView, photoManager):
             self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
 
         elif self.button == 3:
-            
+
             self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
             if self.hasPhoto():
                 self.origin = event.pos()
@@ -669,10 +720,8 @@ class GraphicsView(QGraphicsView, photoManager):
 
         if self.button == 0:
 
-            self.p = self.pixmapItem.pixmap()
-            
             if (
-                not self.p.isNull()
+                not self.pixmapItem.pixmap().isNull()
                 and event.buttons() & Qt.LeftButton
                 and self._path_item is not None
             ):
@@ -682,7 +731,7 @@ class GraphicsView(QGraphicsView, photoManager):
         
         elif self.button == 1:
             if self.changeRubberBand:
-                self.rubberBand.setGeometry(QRect(self.origin, event.pos()).normalized())
+                self.rubberBand.setG3eometry(QRect(self.origin, event.pos()).normalized())
                 self.rectChanged.emit(self.rubberBand.geometry())
             QGraphicsView.mouseMoveEvent(self, event)
 
@@ -709,12 +758,15 @@ class GraphicsView(QGraphicsView, photoManager):
                 self._path_item.setFlag(
                     QGraphicsItem.ItemIsSelectable, True
                 )
+                self._path_item.setFlag(
+                    QGraphicsItem.ItemIsFocusable, True
+                )
                 self._path_item = None
             super(GraphicsView, self).mouseReleaseEvent(event)
+
         elif self.button == 1:
             rubberRect = self.rubberBand.geometry()
             viewRect = self.viewport().rect()
-
             sceneRect = self.mapToScene(rubberRect).boundingRect()#QRectF(self.pixmapItem.pixmap().rect())
             
             self.changeRubberBand = False
@@ -734,7 +786,6 @@ class GraphicsView(QGraphicsView, photoManager):
 
         
         elif self.button == 3:
-            
             rubberRect = self.rubberBand.geometry()
             viewRect = self.viewport().rect()
             sceneRect = QRectF(self.pixmapItem.pixmap().rect())
@@ -751,7 +802,6 @@ class GraphicsView(QGraphicsView, photoManager):
         self.w = editWindow(editim, self.cvImageBW, rubberRect, scale)
         self.w.setGeometry(500, 500, 300, 300)
         self.w.show()
-
 
 
 class MainWindow(QMainWindow):
@@ -900,7 +950,8 @@ class myPopup(QWidget):
         grid = QGridLayout()
 
         self.image = image
-        self.COM = COM
+        self.pixmap = QPixmap(self.image)
+        self.COM = QPixmap(COM)
         self.view = QGraphicsView()
         self.viewCOM = QGraphicsView()
         self.scene = QGraphicsScene()
@@ -942,14 +993,19 @@ class editWindow(QWidget, photoManager):
         super(editWindow, self).__init__(parent)
         self.setWindowTitle("Reciprical space edit")
         self.pixmap = pixmap # NTS - the cropped selected region
-        self.ogImageEdit = editImage # NTS - the full original image in cv2 format
+        self.ogImageEdit = editImage # NTS - the full original black and white image in cv2 format
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~``
         # maybe just crop the image here so that anything done doesnt require changing its shape
         self.ImageEdit = editImage
         self.scale = scale
         self.rect = rect
-        self.ImageEdit = cv2.resize(self.ImageEdit, (self.scale[0], self.scale[1]), cv2.INTER_CUBIC)
-        self.ImageEdit = self.ImageEdit[self.rect.x(): self.rect.x() + self.rect.width()-1, self.rect.y(): self.rect.y() + self.height()-1]
+
+        #self.ImageEdit = cv2.resize(self.ImageEdit, (self.scale[0], self.scale[1]), cv2.INTER_CUBIC)
+        #self.ImageEdit = self.ImageEdit[self.rect.x(): self.rect.x() + self.rect.width()-1, self.rect.y(): self.rect.y() + self.height()-1]
+        #self.ogImageEdit = cv2.resize(self.ogImageEdit, (self.scale[0], self.scale[1]), cv2.INTER_CUBIC)
+        #self.ogImageEdit = self.ogImageEdit[self.rect.x(): self.rect.x() + self.rect.width()-1, self.rect.y(): self.rect.y() + self.height()-1]
+ 
+        
         self.initUI()
     
     def initUI(self):
@@ -1066,13 +1122,14 @@ class editWindow(QWidget, photoManager):
 
         editim = self.ImageEdit
         
-        circles = cv2.HoughCircles(editim, cv2.HOUGH_GRADIENT, 1.2, 100)
-        circles = np.round(circles[0,:]).astype("int")
-        for (x, y, r) in circles:
-            cv2.circle(editim, (x, y), r, (0, 255, 0), 4)
+        #circles = cv2.HoughCircles(editim, cv2.HOUGH_GRADIENT, 1.2, 100)
+        #circles = np.round(circles[0,:]).astype("int")
+        #for (x, y, r) in circles:
+        #    cv2.circle(editim, (x, y), r, (0, 255, 0), 4)
             
         #editim = np.hstack(self.ImageEdit, editim)
-        self.w = myPopup(self.pixmap, QImage(editim, editim.shape[1], editim.shape[0], QImage.Format_Grayscale8))
+        image = QImage(self.ImageEdit, self.ImageEdit.shape[1], self.ImageEdit.shape[0], QImage.Format_Grayscale8)
+        self.w = myPopup(self.pixmap, image)
         self.w.setGeometry(200, 200, 200, 200)
         self.w.show()
         # TODO - fix the accept button and make it so that the distances and angles are found and printed in the terminal (eventually a database is created with this information)
@@ -1122,7 +1179,8 @@ class editWindow(QWidget, photoManager):
         else:
             self.opDict[sender.objectName()] = []
 
-        # TODO - fix the thresholding as well as the image each time a slider is moved - maybe you need to apply the values of each slider to cvogImage each time one slider is moved? ask if there is a better way to do this.
+        # TODO - BUG - sometimes when you do thresholding, and then go back and change any of the other morphological transformations
+        #              it gets rid of the thresholding
         self.ImageEdit = self.editIm(self.ogImageEdit, self.opDict, sender.objectName(), sender.value())
          
         image = QImage(self.ImageEdit, self.ImageEdit.shape[1], self.ImageEdit.shape[0], QImage.Format_Grayscale8)
@@ -1157,12 +1215,17 @@ class myApp2(QWidget, photoManager):
     def initUI(self):
         # TODO - fix formatting of the window so that the sliders don't take up as much space as the images
 
-        #hbox = QHBoxLayout()
         grid = QGridLayout()
         grid.setVerticalSpacing(20)
         grid.setHorizontalSpacing(50)
-        self.view = GraphicsView(self)
+        
+
+        
         self.drawView = QGraphicsView(self)
+        self.view = GraphicsView(self.drawView, self)
+        self.drawView.setMouseTracking(True)
+        self.view.setMouseTracking(True)
+        self.rd = rdButton(self.view)
         
 
         self.editDict = defaultdict(list)
@@ -1201,7 +1264,6 @@ class myApp2(QWidget, photoManager):
         self.sl3.setTickPosition(QSlider.TicksBelow)
         self.sl3.setTickInterval(2)
 
-        self.rd = rdButton(self.view)
         
         grid.addWidget(self.view, 0, 0, 10, 15)
         grid.addWidget(self.drawView, 0, 14, 10, 15)
@@ -1214,9 +1276,6 @@ class myApp2(QWidget, photoManager):
         grid.addWidget(self.sl3, 6, 29, 1, 2)
 
 
-        #frame = QFrame()
-        #frame.setLayout(vbox)
-        #hbox.addWidget(frame)
         self.setLayout(grid)
 
         self.sl1.valueChanged.connect(self.valuechange)

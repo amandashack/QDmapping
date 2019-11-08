@@ -80,7 +80,21 @@ class photoManager():
         opDict[cur_mode].append(value)
 
         for key in opDict.keys():
-            if key.upper() in ["DILATE", "CLOSE", "TOPHAT"] and opDict[key]:
+            if key.upper() == "ERODE":
+
+                value = opDict[key][-1]
+                
+                kernal = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                editim = cv2.erode(editim, kernal, iterations = value) 
+
+            elif key.upper() == "DILATE":
+
+                value = opDict[key][-1]
+                
+                kernal = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+                editim = cv2.erode(editim, kernal, iterations = value)
+
+            elif key.upper() in ["OPEN", "CLOSE", "TOPHAT", "BLACKHAT"] and opDict[key]:
                 
                 key_value = opDict[key][-1]
 
@@ -99,6 +113,16 @@ class photoManager():
             elif key.upper() == "THRESHOLD" and opDict[key]:
                 
                 key_value = opDict[key][-1]
+                #### types of thresholding
+                #### Threshold binary or binary inverted: if the intensity of the pixel is higher than the thresh, 
+                ####        Then the thresh is set to a MaxVal, otherwise the pixels are set to 0
+                #### truncate : the maxiumum intensity value for the pixels is thresh, if the intensity of a pixel
+                ####        value is greater, then its value is truncated (set to the MaxVal)
+                #### threshold to zero or inverted: if the intensity of the pixel value is lower than the thresh,
+                ####        then the new pixe value is zero or vice versa - I believe the other possible option is the TOZERO option
+                ####        cv2.threshold(src, dst, *150*, 200, cv.THRESH_TOZERO) where the stared entry is the threshold and the value which would be the slider
+                #### adaptive thresholding: calculates the threshold for small regions of an image for when there are
+                #### different shadows
                 editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, key_value - 7)
             
             else: print('you have a wrong key on line 96 in graphicsview.py')

@@ -6,17 +6,31 @@ import numpy as np
 import sys
 import math
 import cv2
+import qimage2ndarray as qi
 from collections import defaultdict
 
 from GraphicsView import *
-
+from edt_fft_wndw import *
 
 '''
-10/20
+
+10/28
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NTS - the image editing becomes slower and slower the more you do it because it holds all of
+        the previous edited conditions. possible fix - sending the old values to be stored somewhere else
+        (undo/redo framework)
+
 - added a confirmation window which will compare the original image to the justCOM image
-- need to crop the image before finding just COM and not try to do it for the entire image
-  because thats why I think it wasnt working, just cause the image is so large and the number of circles is huge.
+
+- add radiobuttons for turning editing morphologies on and off and move this whole window to
+        a different file. override group button class again
+
+- bad practice not to include super when overriding - go back and look for this error and fix it
+
+- clean up code and send to github
+
+- make a separate program and make a tiny control
+
 '''
 
 def nothing(x):
@@ -56,21 +70,23 @@ def drawPoints(colorim, point):
     cv2.circle(colorim, (point[0], point[1]), 5, (0, 255, 255), -1)
     return(colorim)
 
-def COM(binary):
-	_, contours, _ = cv2.findContours(binary.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
-	centres = []
-	area = []
-	imperfections = 0
-	for i in range(len(contours)):
-		#if cv2.contourArea(contours[i]) > 5:
-		M = cv2.moments(contours[i])
-		if M['m00'] != 0:
-			centres.append((int(M['m10']/M['m00']), int(M['m01']/M['m00'])))
-			cv2.circle(binary, centres[-1], 1, (0, 100, 0), 1, -8)
-			area.append(cv2.contourArea(contours[i]))
-  	 	#elif:
-  	 	#   imperfections += 1
-	return(binary, centres)
+def COM(editim):
+        binary = editim
+        _, contours, _ = cv2.findContours(binary.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
+        centres = []
+        #area = []
+        imperfections = 0
+        for i in range(len(contours)):
+            #if cv2.contourArea(contours[i]) > 5:
+            M = cv2.moments(contours[i])
+            if M['m00'] != 0:
+                centres.append((int(M['m10']/M['m00']), int(M['m01']/M['m00'])))
+                cv2.circle(binary, centres[-1], 1, (255, 255, 255), 1, -8)
+                #area.append(cv2.contourArea(contours[i]))
+            #else:
+            #    imperfections += 1
+
+        return(binary, centres)
 
 def justCOM(thresh, centres):
         thresh[::] = 0
@@ -80,9 +96,10 @@ def justCOM(thresh, centres):
 
 	#print(thresh.shape)
         for i in range(len(centres)):
-            #print(centres[i])	
-            #com = np.zeros((thresh2.shape[0], thresh2.shape[1]), dtype=np.float32)
-            thresh.itemset((centres[i][1], centres[i][0]), 255)
+            if centres[i][1] < thresh.shape[1] and centres[i][0] < thresh.shape[0]:
+                #print(centres[i])	
+                #com = np.zeros((thresh2.shape[0], thresh2.shape[1]), dtype=np.float32)
+                thresh.itemset((centres[i][1], centres[i][0]), 255)
         #cv2.namedWindow('just COM', cv2.WINDOW_NORMAL)
         #cv2.resizeWindow('just COM', 700, 700)
         #cv2.imshow('just COM', thresh)
@@ -642,7 +659,9 @@ class GraphicsView(QGraphicsView, photoManager):
                 width = self.image.width() * 0.7
                 height = self.image.height() * 0.7
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
-                self.dimage = QImage(self.imageScaled.width(), self.imageScaled.height(), QImage.Format_ARGB32)
+
+                #changed from ARGB which is only used if you want something to have a possible transparancy factor
+                self.dimage = QImage(self.imageScaled.width(), self.imageScaled.height(), QImage.Format_RGB32)
                 self.dpixmap = QPixmap(self.dimage)
                 self.pixmapItem.setPixmap(self.imageScaled)#QtGui.QPixmap(filename))
                 self.dpixmapItem.setPixmap(self.dpixmap)
@@ -800,8 +819,21 @@ class GraphicsView(QGraphicsView, photoManager):
         editim = self.pixmapItem.pixmap().copy(rubberRect)
         scale = [self.imageScaled.width(), self.imageScaled.height()]
         self.w = editWindow(editim, self.cvImageBW, rubberRect, scale)
-        self.w.setGeometry(500, 500, 300, 300)
+        self.w.setGeometry(400, 400, 700, 400)
         self.w.show()
+
+
+
+def uint8Convert(frames): # use this function to scale a 3D numpy array of floats to 0-255 so it plays well with Qt methods
+
+    # convert float array to uint8 array
+    if np.min(frames)<0:
+        frames_uint8 = [np.uint8((np.array(frames[i]) - np.min(frames[i]))/np.max(frames[i])*255) for i in range(np.shape(frames)[0])]
+    else:
+        frames_uint8 = [np.uint8(np.array(frames[i])/np.max(frames[i])*255) for i in range(np.shape(frames)[0])]
+
+    return frames_uint8
+
 
 
 class MainWindow(QMainWindow):
@@ -950,7 +982,6 @@ class myPopup(QWidget):
         grid = QGridLayout()
 
         self.image = image
-        self.pixmap = QPixmap(self.image)
         self.COM = QPixmap(COM)
         self.view = QGraphicsView()
         self.viewCOM = QGraphicsView()
@@ -970,11 +1001,11 @@ class myPopup(QWidget):
         self.accept.setText("accept")
         self.decline.setText("decline")
 
-        grid.addWidget(self.words)
-        grid.addWidget(self.viewCOM)
-        grid.addWidget(self.view)
-        grid.addWidget(self.accept)
-        grid.addWidget(self.decline)
+        grid.addWidget(self.view, 0, 0, 1, 2)
+        grid.addWidget(self.viewCOM, 0, 2, 1, 2)
+        grid.addWidget(self.words, 2, 0, 1, -1)
+        grid.addWidget(self.accept, 3, 2)
+        grid.addWidget(self.decline, 3, 3)
         self.setLayout(grid)
 
         self.decline.pressed.connect(self.declinePressed)
@@ -992,8 +1023,8 @@ class editWindow(QWidget, photoManager):
     def __init__(self, pixmap, editImage, rect, scale, parent=None):
         super(editWindow, self).__init__(parent)
         self.setWindowTitle("Reciprical space edit")
-        self.pixmap = pixmap # NTS - the cropped selected region
-        self.ogImageEdit = editImage # NTS - the full original black and white image in cv2 format
+        self.og_pixmap = pixmap # NTS - the cropped selected region
+        self.og_ImageEdit = editImage # NTS - the full original black and white image in cv2 format
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~``
         # maybe just crop the image here so that anything done doesnt require changing its shape
         self.ImageEdit = editImage
@@ -1012,16 +1043,15 @@ class editWindow(QWidget, photoManager):
         self.view = QGraphicsView()
         self.view.setScene(QGraphicsScene())
         self.pixmapItem = QGraphicsPixmapItem() #check if everytime you open a new image the old image is still an item
-        self.pixmapItem.setPixmap(self.pixmap)
+        self.pixmapItem.setPixmap(self.og_pixmap)
         self.view.scene().addItem(self.pixmapItem)
-        #TODO -- add the image editing aspect to each slider
 
         self.opDict = defaultdict(list)
 
         self.sl1 = QSlider(Qt.Horizontal)
         self.lbl1 = QLabel()
-        self.lbl1.setText("erode/dilate")
-        self.sl1.setObjectName("dilate")
+        self.lbl1.setText("erode")
+        self.sl1.setObjectName("erode")
         self.sl1.setMinimum(0)
         self.sl1.setMaximum(10)
         self.sl1.setValue(1)
@@ -1030,42 +1060,77 @@ class editWindow(QWidget, photoManager):
 
         self.sl2 = QSlider(Qt.Horizontal)
         self.lbl2 = QLabel()
-        self.lbl2.setText("open/close")
-        self.sl2.setObjectName('close')
+        self.lbl2.setText("dilate")
+        self.sl2.setObjectName("dilate")
         self.sl2.setMinimum(0)
         self.sl2.setMaximum(10)
-        self.sl2.setValue(0)
+        self.sl2.setValue(1)
         self.sl2.setTickPosition(QSlider.TicksBelow)
         self.sl2.setTickInterval(1)
 
         self.sl3 = QSlider(Qt.Horizontal)
         self.lbl3 = QLabel()
-        self.lbl3.setText("blackhat/tophat")
-        self.sl3.setObjectName('tophat')
+        self.lbl3.setText("open")
+        self.sl3.setObjectName('open')
         self.sl3.setMinimum(0)
-        self.sl3.setMaximum(30)
-        self.sl3.setValue(10)
+        self.sl3.setMaximum(10)
+        self.sl3.setValue(0)
         self.sl3.setTickPosition(QSlider.TicksBelow)
-        self.sl3.setTickInterval(2)
+        self.sl3.setTickInterval(1)
 
         self.sl4 = QSlider(Qt.Horizontal)
-        self.sl4.setObjectName("Blur")
+        self.sl4.setObjectName("close")
         self.lbl4 = QLabel()
-        self.lbl4.setText("Blur")
+        self.lbl4.setText("close")
         self.sl4.setMinimum(0)
         self.sl4.setMaximum(5)
         self.sl4.setValue(1)
         self.sl4.setTickPosition(QSlider.TicksBelow)
         self.sl4.setTickInterval(1)
+        
 
         self.sl5 = QSlider(Qt.Horizontal)
-        self.sl5.setObjectName("Threshold")
         self.lbl5 = QLabel()
-        self.lbl5.setText("Threshold")
+        self.lbl5.setText("blackhat")
+        self.sl5.setObjectName('blackhat')
         self.sl5.setMinimum(0)
-        self.sl5.setMaximum(10)
+        self.sl5.setMaximum(30)
+        self.sl5.setValue(10)
         self.sl5.setTickPosition(QSlider.TicksBelow)
-        self.sl5.setTickInterval(1)
+        self.sl5.setTickInterval(2)
+
+
+        self.sl6 = QSlider(Qt.Horizontal)
+        self.lbl6 = QLabel()
+        self.lbl6.setText("blur")
+        self.sl6.setObjectName("blur")
+        self.sl6.setMinimum(0)
+        self.sl6.setMaximum(10)
+        self.sl6.setValue(1)
+        self.sl6.setTickPosition(QSlider.TicksBelow)
+        self.sl6.setTickInterval(1)
+
+
+        self.sl7 = QSlider(Qt.Horizontal)
+        self.sl7.setObjectName("Threshold")
+        self.lbl7 = QLabel()
+        self.lbl7.setText("Threshold")
+        self.sl7.setMinimum(0)
+        self.sl7.setMaximum(10)
+        self.sl7.setTickPosition(QSlider.TicksBelow)
+        self.sl7.setTickInterval(1)
+
+ 
+        self.sl8 = QSlider(Qt.Horizontal)
+        self.sl8.setObjectName("tophat")
+        self.lbl8 = QLabel()
+        self.lbl8.setText("tophat")
+        self.sl8.setMinimum(0)
+        self.sl8.setMaximum(10)
+        self.sl8.setTickPosition(QSlider.TicksBelow)
+        self.sl8.setTickInterval(1)
+
+       
 
         buttons = QButtonGroup()
         self.cancel = QPushButton()
@@ -1079,24 +1144,31 @@ class editWindow(QWidget, photoManager):
         buttons.addButton(self.cancel)
         buttons.addButton(self.accept)
 
-        hbox1 = QHBoxLayout() #layout of window
-        hbox2 = QHBoxLayout() #layout of buttons
+        grid = QGridLayout()
 
-        hbox2.addWidget(self.cancel)
-        hbox2.addWidget(self.accept)
+        grid.addWidget(self.view, 0, 0, -1, 2)
 
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.lbl1)
-        vbox.addWidget(self.sl1)
-        vbox.addWidget(self.lbl2)
-        vbox.addWidget(self.sl2)
-        vbox.addWidget(self.lbl3)
-        vbox.addWidget(self.sl3)
-        vbox.addWidget(self.lbl4)
-        vbox.addWidget(self.sl4)
-        vbox.addWidget(self.lbl5)
-        vbox.addWidget(self.sl5)
+        grid.addWidget(self.lbl1, 0, 2, 1, -1)
+        grid.addWidget(self.sl1, 1, 2, 1, -1)
+        grid.addWidget(self.lbl2, 2, 2, 1, -1)
+        grid.addWidget(self.sl2, 3, 2, 1, -1)
+        grid.addWidget(self.lbl3, 4, 2, 1, -1)
+        grid.addWidget(self.sl3, 5, 2, 1, -1)
+        grid.addWidget(self.lbl4, 6, 2, 1, -1)
+        grid.addWidget(self.sl4, 7, 2, 1, -1)
+        grid.addWidget(self.lbl8, 8, 2, 1, -1)
+        grid.addWidget(self.sl8, 9, 2, 1, -1)
+        grid.addWidget(self.lbl5, 10, 2, 1, -1)
+        grid.addWidget(self.sl5, 11, 2, 1, -1)
+        grid.addWidget(self.lbl6, 12, 2, 1, -1)
+        grid.addWidget(self.sl6, 13, 2, 1, -1)
+        grid.addWidget(self.lbl7, 14, 2, 1, -1)
+        grid.addWidget(self.sl7, 15, 2, 1, -1)
 
+        grid.addWidget(self.cancel, 16, 2, 1, 1)
+        grid.addWidget(self.accept, 16, 3, 1, -1)
+
+        '''
         frame1 = QFrame() #frame around right side layout
         frame2 = QFrame() #frame around buttons
 
@@ -1106,67 +1178,60 @@ class editWindow(QWidget, photoManager):
 
         hbox1.addWidget(self.view)
         hbox1.addWidget(frame1)
-
-        self.setLayout(hbox1)
+        '''
+        self.setLayout(grid)
 
         self.sl1.valueChanged.connect(self.valuechange)
         self.sl2.valueChanged.connect(self.valuechange)
         self.sl3.valueChanged.connect(self.valuechange) ######### you're copying and pasting -- we can overwrite the slider class and make a value change/edit area
         self.sl4.valueChanged.connect(self.valuechange)
         self.sl5.valueChanged.connect(self.valuechange)
-        
+        self.sl6.valueChanged.connect(self.valuechange)
+        self.sl7.valueChanged.connect(self.valuechange)
+        self.sl8.valueChanged.connect(self.valuechange)
+
         self.cancel.clicked.connect(self.close)
         self.accept.clicked.connect(self.acceptButton)
 
     def acceptButton(self):
 
         editim = self.ImageEdit
+        editim = cv2.resize(self.ImageEdit, (self.scale[0], self.scale[1]), cv2.INTER_CUBIC)
         
-        #circles = cv2.HoughCircles(editim, cv2.HOUGH_GRADIENT, 1.2, 100)
-        #circles = np.round(circles[0,:]).astype("int")
-        #for (x, y, r) in circles:
-        #    cv2.circle(editim, (x, y), r, (0, 255, 0), 4)
-            
-        #editim = np.hstack(self.ImageEdit, editim)
-        image = QImage(self.ImageEdit, self.ImageEdit.shape[1], self.ImageEdit.shape[0], QImage.Format_Grayscale8)
-        self.w = myPopup(self.pixmap, image)
-        self.w.setGeometry(200, 200, 200, 200)
+        x = self.rect.x() 
+        width = self.rect.x() + self.rect.width() 
+        width = int(2 * round(width / 2.))
+        y = self.rect.y() 
+        height = self.rect.y() + self.rect.height()
+        
+        ##### this step was giving an error staying QImage: Too many arguments. This is because "you need an object that supports the buffer protocol"
+        ##### if Qt expects a signed char * or an unsigned char * then PyQt4 will accept bytes. A numpy array satisfies both of these but
+        ##### apparently a numpy view does not - in order to return to an array after completing an operation that greats a numpy view, do .copy()
+        editim = editim[y:height, x:width].copy()
+        
+        editim, centres = COM(editim) 
+        editim = justCOM(editim, centres)
+
+        ##### the problem now is the fact that QImage needs to know how many bytesperline the array is, otherwise it will just guess and it may guess wrong
+        #### see stack overflow - QImage skews some images but not others
+        #### the work around was to make sure that the width was a factor of 2. however, does this always work? if this comes up as a bug later on, look back at 
+        #### stackoverflow page
+        print(editim.shape, self.rect.width(), self.rect.height())
+        #dataUint8 = uint8Convert(editim)
+        #height, width = np.shape(dataUint8)
+        #totalBytes = dataUint8[0].nbytes
+        #bytesperline = int(totalBytes/height) #this is the line I don't understand
+        #### not sure if this whole precuress is necessary or if you can just use the width straight from the image?
+        #width = self.rect.width()
+        image = QImage(editim, editim.shape[1], editim.shape[0], , QImage.Format_Grayscale8)
+        self.w = myPopup(self.og_pixmap, image)
+        self.w.setGeometry(400, 400, 700, 400)
         self.w.show()
+
+        ### you can always use drawPoints function to see where the circles are
+
         # TODO - fix the accept button and make it so that the distances and angles are found and printed in the terminal (eventually a database is created with this information)
-        '''
-        editim = self.ImageEdit
-        sizeset = dict() #a dictionary of size of image and the settings for that size area
-        
-        editim, centres2 = COM(editim)
-        editim = justCOM(editim, centres2)
-        #image = reciprocal(editim)
-
-        #editim, centres = COM(editim)
-        #editim = justCOM(editim, centres)
-        image = editim
-        cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('final', 700, 700)
-        cv2.imshow('final', image)
-
-        k = cv2.waitKey(0) & 0xFF
-        if k == 27:
-            cv2.destroyAllWindows()
-        if k == ord("s"):
-            cv2.imwrite("fft.png", image)
-            cv2.destroyAllWindows()
-        #image = cv2.imread("fft.png", 0)
-        #colorIm = cv2.imread("fft.png")
-        #editim = image
-        #editim, centres = COM(image)
-        #for i, j in centres:
-        #    colorIm = drawPoints(colorIm, (i, j))
-        #cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        #cv2.resizeWindow('final', 700, 700)
-        #cv2.imshow('final', colorIm)
-        #cv2.waitKey(0) & 0xFF
-        #cv2.destroyAllWindows()
-        '''
-   
+  
         #TODO have a new window pop up which shows the reciprocal space image
 
     def valuechange(self):
@@ -1181,9 +1246,9 @@ class editWindow(QWidget, photoManager):
 
         # TODO - BUG - sometimes when you do thresholding, and then go back and change any of the other morphological transformations
         #              it gets rid of the thresholding
-        self.ImageEdit = self.editIm(self.ogImageEdit, self.opDict, sender.objectName(), sender.value())
-         
-        image = QImage(self.ImageEdit, self.ImageEdit.shape[1], self.ImageEdit.shape[0], QImage.Format_Grayscale8)
+        self.ImageEdit = self.editIm(self.og_ImageEdit, self.opDict, sender.objectName(), sender.value())
+        width = self.ImageEdit.shape[1]
+        image = QImage(self.ImageEdit, self.ImageEdit.shape[1], self.ImageEdit.shape[0], width, QImage.Format_Grayscale8)
                         #self.imageEdit.shape[1] * 3, QImage.Format_Grayscale16)
         self.pixmap = QPixmap(image)
         width = self.scale[0]
@@ -1213,7 +1278,7 @@ class myApp2(QWidget, photoManager):
         self.initUI()
     
     def initUI(self):
-        # TODO - fix formatting of the window so that the sliders don't take up as much space as the images
+        # TODO - add reset button
 
         grid = QGridLayout()
         grid.setVerticalSpacing(20)
@@ -1232,10 +1297,10 @@ class myApp2(QWidget, photoManager):
 
         # TODO - add a radiobutton to have a slider turned on and off
         self.lbl1 = QLabel()
-        self.lbl1.setText("erode/dilate")
+        self.lbl1.setText("erode")
         self.lbl1.setAlignment(Qt.AlignCenter)
         self.sl1 = QSlider(Qt.Horizontal)
-        self.sl1.setObjectName("dilate")
+        self.sl1.setObjectName("erode")
         self.sl1.setMinimum(0)
         self.sl1.setMaximum(10)
         self.sl1.setValue(1)
@@ -1243,44 +1308,91 @@ class myApp2(QWidget, photoManager):
         self.sl1.setTickInterval(1)
 
         self.lbl2 = QLabel()
-        self.lbl2.setText("open/close")
+        self.lbl2.setText("open")
         self.lbl2.setAlignment(Qt.AlignCenter)
         self.sl2 = QSlider(Qt.Horizontal)
-        self.sl2.setObjectName('close')
+        self.sl2.setObjectName('open')
         self.sl2.setMinimum(0)
         self.sl2.setMaximum(10)
-        self.sl2.setValue(0)
+        self.sl2.setValue(1)
         self.sl2.setTickPosition(QSlider.TicksBelow)
         self.sl2.setTickInterval(1)
 
         self.lbl3 = QLabel()
-        self.lbl3.setText("blackhat/tophat")
+        self.lbl3.setText("blackhat")
         self.lbl3.setAlignment(Qt.AlignCenter)
         self.sl3 = QSlider(Qt.Horizontal)
-        self.sl3.setObjectName('tophat')
+        self.sl3.setObjectName('blackhat')
         self.sl3.setMinimum(0)
-        self.sl3.setMaximum(40)
-        self.sl3.setValue(10)
+        self.sl3.setMaximum(10)
+        self.sl3.setValue(1)
         self.sl3.setTickPosition(QSlider.TicksBelow)
-        self.sl3.setTickInterval(2)
+        self.sl3.setTickInterval(1)
+
+        self.lbl4 = QLabel()
+        self.lbl4.setText("tophat")
+        self.lbl4.setAlignment(Qt.AlignCenter)
+        self.sl4 = QSlider(Qt.Horizontal)
+        self.sl4.setObjectName('tophat')
+        self.sl4.setMinimum(0)
+        self.sl4.setMaximum(10)
+        self.sl4.setValue(1)
+        self.sl4.setTickPosition(QSlider.TicksBelow)
+        self.sl4.setTickInterval(1)
+
+
+        self.lbl5 = QLabel()
+        self.lbl5.setText("close")
+        self.lbl5.setAlignment(Qt.AlignCenter)
+        self.sl5 = QSlider(Qt.Horizontal)
+        self.sl5.setObjectName('close')
+        self.sl5.setMinimum(0)
+        self.sl5.setMaximum(10)
+        self.sl5.setValue(1)
+        self.sl5.setTickPosition(QSlider.TicksBelow)
+        self.sl5.setTickInterval(1)
+
+
+        self.lbl6 = QLabel()
+        self.lbl6.setText("dilate")
+        self.lbl6.setAlignment(Qt.AlignCenter)
+        self.sl6 = QSlider(Qt.Horizontal)
+        self.sl6.setObjectName('dilate')
+        self.sl6.setMinimum(0)
+        self.sl6.setMaximum(10)
+        self.sl6.setValue(1)
+        self.sl6.setTickPosition(QSlider.TicksBelow)
+        self.sl6.setTickInterval(1)
+
 
         
-        grid.addWidget(self.view, 0, 0, 10, 15)
-        grid.addWidget(self.drawView, 0, 14, 10, 15)
-        grid.addWidget(self.rd, 0, 29, 1, 2)
-        grid.addWidget(self.lbl1, 1, 29, 1, 2)
-        grid.addWidget(self.sl1, 2, 29, 1, 2)
-        grid.addWidget(self.lbl2, 3, 29, 1, 2)
-        grid.addWidget(self.sl2, 4, 29, 1, 2)
-        grid.addWidget(self.lbl3, 5, 29, 1, 2)
-        grid.addWidget(self.sl3, 6, 29, 1, 2)
-
+        grid.addWidget(self.view, 0, 0, -1, 15)
+        grid.addWidget(self.drawView, 0, 14, -1, 15)
+        grid.addWidget(self.rd, 0, 29, 1, 3)
+        grid.addWidget(self.lbl1, 1, 29, 1, 3)
+        grid.addWidget(self.sl1, 2, 29, 1, 3)
+        grid.addWidget(self.lbl6, 3, 29, 1, 3)
+        grid.addWidget(self.sl6, 4, 29, 1, 3)
+        grid.addWidget(self.lbl2, 5, 29, 1, 3)
+        grid.addWidget(self.sl2, 6, 29, 1, 3)
+        grid.addWidget(self.lbl5, 7, 29, 1, 3)
+        grid.addWidget(self.sl5, 8, 29, 1, 3)
+        grid.addWidget(self.lbl3, 9, 29, 1, 3)
+        grid.addWidget(self.sl3, 10, 29, 1, 3)
+        grid.addWidget(self.lbl4, 11, 29, 1, 3)
+        grid.addWidget(self.sl4, 12, 29, 1, 3)
 
         self.setLayout(grid)
 
         self.sl1.valueChanged.connect(self.valuechange)
         self.sl2.valueChanged.connect(self.valuechange)
         self.sl3.valueChanged.connect(self.valuechange)
+        self.sl4.valueChanged.connect(self.valuechange)
+        self.sl5.valueChanged.connect(self.valuechange)
+        self.sl6.valueChanged.connect(self.valuechange)
+
+
+
 
     def connectRB(self):
         return(self.rd._button_group.checkedId())

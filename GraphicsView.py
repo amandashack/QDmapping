@@ -126,30 +126,7 @@ class photoManager():
                 editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, key_value - 7)
             
             else: print('you have a wrong key on line 96 in graphicsview.py')
-        '''    
-
-        if cur_mode.upper() in ["DILATE", "CLOSE", "TOPHAT"]:
-            
-            opDict[key].append(value)
-            str_mode = 'ellipse'
-            # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
-            str_name = 'MORPH_' + str_mode.upper()
-            oper_name = 'MORPH_' + cur_mode.upper()
-
-            st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
-            editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations = value)
-
-
-        elif cur_mode.upper() == "BLUR":
-            
-            opDict[key].append(value)
-            editim = cv2.GaussianBlur(editim, (3, 3), value)
-
-            
-        elif cur_mode.upper() == "THRESHOLD":
-            opDict[key].append(value) 
-            editim = cv2.adaptiveThreshold(editim, 255,  cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, value)
-        '''
+ 
 
         return(editim)
 

@@ -1,6 +1,6 @@
-# import sys
-# from PyQt5.QtCore import Qt
-# from PyQt5.QtGui import *
+import sys
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import *
 
 # class Window(QApplication):
 
@@ -124,7 +124,8 @@
 #     mainMenu = Menu()
 #     sys.exit(app.exec_())
 
-
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 import random, sys
 from PyQt5.QtCore import QPoint, QRect, QSize, Qt
 from PyQt5.QtGui import *

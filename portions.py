@@ -10,7 +10,7 @@ import qimage2ndarray as qi
 from collections import defaultdict
 
 from GraphicsView import *
-from edt_fft_wndw import *
+from fftpop import *
 
 '''
 
@@ -33,37 +33,10 @@ NTS - the image editing becomes slower and slower the more you do it because it 
 
 '''
 
+
+#### used for timing purposes
 def nothing(x):
     pass
-
-
-# def edit(editim, cur_mode, value):
-#         im = editim
-#         str_mode = 'ellipse'
-#         # sz, iters, op = trackbar(im, cur_mode, str_mode) #send in im so you can deal with a smaller size image
-#         str_name = 'MORPH_' + str_mode.upper()
-#         oper_name = 'MORPH_' + cur_mode.upper()
-#         st = cv2.getStructuringElement(getattr(cv2, str_name), (2, 2))
-#         im = cv2.morphologyEx(im, getattr(cv2, oper_name), st, iterations=value)
-#         editim = cv2.morphologyEx(editim, getattr(cv2, oper_name), st, iterations=value) #actually change full size image
-#         return(editim)
-
-        # mode = 'GaussianBlur'
-        # str_mode = None
-        # # sz, iters, op = trackbar(im, mode, str_mode)
-        # im = cv2.GaussianBlur(im, (sz, sz), iters)
-        # #im = cv2.bilateralFilter(im, iters, sz, sz)
-        # editim = cv2.GaussianBlur(editim, (sz, sz), iters)
-        # sizeset[h]['GaussianBlur'] = ('GaussianBlur', sz, iters) 
-
-        # mode = 'adaptiveThreshold'
-        # str_mode = None
-        # # sz, iters, op = trackbar(im, mode, str_mode)
-        # im = cv2.adaptiveThreshold(im, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
-        # editim = cv2.adaptiveThreshold(editim, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, sz, iters - 7)
-        # sizeset[h]['adaptiveThreshold'] = ('adaptiveThreshold', sz, iters)
-        # return(editim, sizeset)
-
 
 
 def drawPoints(colorim, point):
@@ -108,7 +81,7 @@ def justCOM(thresh, centres):
         return(thresh)
 
 ###### this is where comass.py ends
-
+'''
 PY3 = sys.version_info[0] == 3
 
 if PY3:
@@ -214,6 +187,7 @@ class Sketcher:
 
 
 # palette data from matplotlib/_cm.py
+
 _jet_data =   {'red':   ((0., 0, 0), (0.35, 0, 0), (0.66, 1, 1), (0.89,1, 1),
                          (1, 0.5, 0.5)),
                'green': ((0., 0, 0), (0.125,0, 0), (0.375,1, 1), (0.64,1, 1),
@@ -302,7 +276,7 @@ class RectSelector:
 
 
 def grouper(n, iterable, fillvalue=None):
-    '''grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx'''
+    # grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     if PY3:
         output = it.zip_longest(fillvalue=fillvalue, *args)
@@ -311,10 +285,10 @@ def grouper(n, iterable, fillvalue=None):
     return output
 
 def mosaic(w, imgs):
-    '''Make a grid from images.
-    w    -- number of grid columns
-    imgs -- images (must have same size and format)
-    '''
+    #Make a grid from images.
+    #w    -- number of grid columns
+    #imgs -- images (must have same size and format)
+    
     imgs = iter(imgs)
     if PY3:
         img0 = next(imgs)
@@ -341,11 +315,11 @@ def draw_keypoints(vis, keypoints, color = (0, 255, 255)):
 ###### this is where file common.py ends
 
 def shift_dft(src, dst=None):
-    '''
-          Rearrange the quadrants of Fourier image so that the origin is at
-        the image center. Swaps quadrant 1 with 3, and 2 with 4.
-        src and dst arrays must be equal size & type
-    '''
+    
+    #      Rearrange the quadrants of Fourier image so that the origin is at
+    #    the image center. Swaps quadrant 1 with 3, and 2 with 4.
+    #    src and dst arrays must be equal size & type
+    
 
     if dst is None:
         dst = np.empty(src.shape, src.dtype)
@@ -449,65 +423,11 @@ class Reciprocal(QWidget):
         # self.label = QLabel()
         # self.label.setPixmap(self.reciprocalIm)
         
+'''
 
-        
 
-class myApp1(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setGeometry(150, 150, 600, 600) #sets top left corner of 
-        #location on a screen and then the width and height of the box
-        self.setWindowTitle("Reciprocal")
-
-        self.initUI()
-    
-    def initUI(self):
-        hbox = QHBoxLayout()
-        self.viewog = QGraphicsView()
-        self.sceneog = QGraphicsScene()
-        self.viewrec = QGraphicsView()
-        self.scenerec = QGraphicsScene()
-
-        
-        self.pixmap = QPixmap("qds")
-        self.pixmap = self.pixmap.scaled(500, 500, Qt.KeepAspectRatio)
-        self.sceneog.addPixmap(self.pixmap)
-        self.viewog.setScene(self.sceneog)
-        #self.viewrec.setScene(self.scenerec)
-
-        hbox.addWidget(self.viewog)
-        hbox.addWidget(self.viewrec)
-
-        frame = QFrame()
-
-        self.recip = QPushButton("Reciprocal", frame)
-        self.recip.setEnabled(True)
-        
-        self.draw = QPushButton("Select", frame)
-        self.draw.setEnabled(True)
-        
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.recip)
-        
-        vbox.addWidget(self.draw)
-
-        vbox.addStretch(1)
-
-        frame.setLayout(vbox)
-        hbox.addWidget(frame)
-        self.setLayout(hbox)
-
-        self.recip.clicked.connect(self.onClick)
-        
-    def onClick(self):
-        self.displayReciprocal()
-    
-    def displayReciprocal(self):
-        self.recipIm = QPixmap("fft")
-        self.recipIm = self.recipIm.scaled(500, 500, Qt.KeepAspectRatio)
-        self.scenerec.addPixmap(self.recipIm)
-        self.viewrec.setScene(self.scenerec)
-
+###### radiobutton group box - I think this could be more agnostic 
+###### by taking out the explicit names of the radiobuttons
 
 class rdButton(QGroupBox):
 
@@ -517,7 +437,7 @@ class rdButton(QGroupBox):
         super(rdButton, self).__init__()
         self.view = view
 
-
+	
         # Create an array of radio buttons
         rdButtons = [QRadioButton("Draw"), QRadioButton("Zoom"), QRadioButton("Pan"), QRadioButton("Reciprocal")]
 
@@ -559,11 +479,11 @@ class rdButton(QGroupBox):
         if self._button_group.checkedId() == 3:
             
             QApplication.setOverrideCursor(QCursor(Qt.PointingHandCursor))
-
-
-class GraphicsScene2(QGraphicsScene):
+        else: QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
+		
+class GraphicsScene(QGraphicsScene):
     def __init__(self, parent=None):
-        super(GraphicsScene2, self).__init__(parent)
+        super(GraphicsScene, self).__init__(parent)
     
     def retrieval(self, scene):
         self.scene = scene
@@ -604,19 +524,32 @@ class GraphicsView(QGraphicsView, photoManager):
 
     def __init__(self, dView, parent = None):
         super(GraphicsView, self).__init__(parent)
+        
         self.parent = parent
         self.dView = dView
         self.button = 0
+        
+        screenShape = QDesktopWidget().screenGeometry()
+        print(screenShape)
         self.setGeometry(300, 300, 250, 150)
         
-        self.setScene(GraphicsScene2(self))
-        self.dView.setScene(GraphicsScene2(self))
+        self.scene = GraphicsScene(self)
+        self.dscene = GraphicsScene(self)
+        self.setScene(self.scene)
+        self.dView.setScene(self.dscene)
+        
+        '''
         self.dView.scene().retrieval(self.scene())
         self.pixmapItem = QGraphicsPixmapItem()
         self.dpixmapItem = QGraphicsPixmapItem()
         self.scene().addItem(self.pixmapItem)
         self.dView.scene().addItem(self.dpixmapItem)
-        
+        '''
+        self.dscene.retrieval(self.scene)
+        self.pixmapItem = QGraphicsPixmapItem()
+        self.dpixmapItem = QGraphicsPixmapItem()
+        self.scene.addItem(self.pixmapItem)
+        self.dscene.addItem(self.dpixmapItem)
         
 
         self._empty = True
@@ -656,8 +589,10 @@ class GraphicsView(QGraphicsView, photoManager):
 
                 self._empty = False
                 self.image = QPixmap(filename)
-                width = self.image.width() * 0.7
-                height = self.image.height() * 0.7
+
+                # scale the image because it is too zoomed out
+                width = self.image.width() * 0.2
+                height = self.image.height() * 0.2
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
 
                 #changed from ARGB which is only used if you want something to have a possible transparancy factor
@@ -673,14 +608,21 @@ class GraphicsView(QGraphicsView, photoManager):
             
             elif self._empty == False:
                 
-                self.scene().clear()
+                
+                self.scene.clear()
                 self.image = QPixmap(filename) #this should not change unless a new image is selected
                 width = self.image.width() * 0.3
                 height = self.image.height() * 0.3
                 self.imageScaled = self.image.scaled(width, height, QtCore.Qt.KeepAspectRatio)
+                
                 self.pixmapItem = QGraphicsPixmapItem()
-                self.scene().addItem(self.pixmapItem)
-                self.pixmapItem.setPixmap(self.imageScaled)#QtGui.QPixmap(filename))
+                self.scene.addItem(self.pixmapItem)
+                self.dimage = QImage(self.imageScaled.width(), self.imageScaled.height(), \
+                                     QImage.Format_RGB32)
+                self.dpixmap = QPixmap(self.dimage)
+                
+                self.pixmapItem.setPixmap(self.imageScaled)
+                self.dpixmapItem.setPixmap(self.dpixmap)
 
                 self.cvImage = cv2.imread(filename)
                 self.cvogImage = cv2.imread(filename)
@@ -750,7 +692,7 @@ class GraphicsView(QGraphicsView, photoManager):
         
         elif self.button == 1:
             if self.changeRubberBand:
-                self.rubberBand.setG3eometry(QRect(self.origin, event.pos()).normalized())
+                self.rubberBand.setGeometry(QRect(self.origin, event.pos()).normalized())
                 self.rectChanged.emit(self.rubberBand.geometry())
             QGraphicsView.mouseMoveEvent(self, event)
 
@@ -786,20 +728,33 @@ class GraphicsView(QGraphicsView, photoManager):
         elif self.button == 1:
             rubberRect = self.rubberBand.geometry()
             viewRect = self.viewport().rect()
-            sceneRect = self.mapToScene(rubberRect).boundingRect()#QRectF(self.pixmapItem.pixmap().rect())
+            sceneRect = self.mapToScene(rubberRect).boundingRect() # maptoScene returns a QPolygonF object and then calls the method boundingRect
             
+
             self.changeRubberBand = False
             self.rubberBand.hide() #if you would like for the selected region to go away after release
 
-            width = self.imageScaled.width() / rubberRect.height()
-            height = self.imageScaled.height() / rubberRect.height()
+            widthScale = self.imageScaled.width() / rubberRect.width()
+            heightScale = self.imageScaled.height() / rubberRect.height()
             
-            self.imageScaled = self.image.scaled(width * self.imageScaled.width(), height * self.imageScaled.height(), QtCore.Qt.KeepAspectRatio)
-          
+
+            ##### you can scale the image easily bu scaling the viewport
+            ##### however, this significantly blurs the image
+
+            #widthScale = self.imageScaled.width() / rubberRect.height()
+            #heightScale = self.imageScaled.height() / rubberRect.height()
+            
+            self.imageScaled = self.image.scaled(widthScale, heightScale, \
+                                     QtCore.Qt.KeepAspectRatio)
+            #self.imageScaled = self.image.scaled(.8, .8, QtCore.Qt.KeepAspectRatio)
             #center = [sceneRect.y() + (sceneRect.height() / 2), sceneRect.x() + (sceneRect.width() / 2)]
             #TODO - make it so the viewport is centered on the center of the selection region 
-            #self.centerOn(center[1], center[0])
+            #self.centerOn(center[1], center[0]) 
+            self.scene.clear()
+            self.pixmapItem = QGraphicsPixmapItem()
+            self.scene.addItem(self.pixmapItem)
             self.pixmapItem.setPixmap(self.imageScaled)
+            #self.centerOn(sceneRect.center())
             
             QGraphicsView.mouseReleaseEvent(self, event)
 
@@ -1210,7 +1165,7 @@ class editWindow(QWidget, photoManager):
         editim = editim[y:height, x:width].copy()
         
         editim, centres = COM(editim) 
-        editim = justCOM(editim, centres)
+        #editim = justCOM(editim, centres)
 
         ##### the problem now is the fact that QImage needs to know how many bytesperline the array is, otherwise it will just guess and it may guess wrong
         #### see stack overflow - QImage skews some images but not others
@@ -1223,7 +1178,7 @@ class editWindow(QWidget, photoManager):
         #bytesperline = int(totalBytes/height) #this is the line I don't understand
         #### not sure if this whole precuress is necessary or if you can just use the width straight from the image?
         #width = self.rect.width()
-        image = QImage(editim, editim.shape[1], editim.shape[0], , QImage.Format_Grayscale8)
+        image = QImage(editim, editim.shape[1], editim.shape[0], QImage.Format_Grayscale8)
         self.w = myPopup(self.og_pixmap, image)
         self.w.setGeometry(400, 400, 700, 400)
         self.w.show()

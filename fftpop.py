@@ -11,4 +11,3 @@ from collections import defaultdict
 from GraphicsView import *
 
 
-

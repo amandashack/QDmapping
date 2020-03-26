@@ -1165,20 +1165,21 @@ class editWindow(QWidget, photoManager):
         editim = editim[y:height, x:width].copy()
         
         editim, centres = COM(editim) 
-        #editim = justCOM(editim, centres)
+        editim = justCOM(editim, centres)
 
         ##### the problem now is the fact that QImage needs to know how many bytesperline the array is, otherwise it will just guess and it may guess wrong
         #### see stack overflow - QImage skews some images but not others
         #### the work around was to make sure that the width was a factor of 2. however, does this always work? if this comes up as a bug later on, look back at 
         #### stackoverflow page
-        print(editim.shape, self.rect.width(), self.rect.height())
+        
         #dataUint8 = uint8Convert(editim)
         #height, width = np.shape(dataUint8)
         #totalBytes = dataUint8[0].nbytes
         #bytesperline = int(totalBytes/height) #this is the line I don't understand
         #### not sure if this whole precuress is necessary or if you can just use the width straight from the image?
         #width = self.rect.width()
-        image = QImage(editim, editim.shape[1], editim.shape[0], QImage.Format_Grayscale8)
+        #image = QImage(editim, editim.shape[1], editim.shape[0], QImage.Format_Grayscale8)
+        image = qi.array2qimage(editim, normalize = False)
         self.w = myPopup(self.og_pixmap, image)
         self.w.setGeometry(400, 400, 700, 400)
         self.w.show()
